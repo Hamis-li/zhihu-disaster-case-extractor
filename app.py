@@ -571,38 +571,39 @@ def cached_extract(text_hash, original_text, access_secret, model):
 st.set_page_config(page_title="灾害应急案例AI萃取助手", page_icon="🌊", layout="wide")
 
 # ============================================================
-# GV 风格：人文科技极简 · 米白纸张 + 高饱和纯色局部点缀
+# 知乎蓝主题：专业蓝 · 知乎系配色（#0066FF 主色 + 蓝白灰文字层级）
 # ============================================================
 st.markdown("""<style>
-html, body, [data-testid="stAppViewContainer"] { background: #FAF7F2 !important; }
-[data-testid="stHeader"] { background: rgba(250,247,242,0.9) !important; }
-[data-testid="stSidebar"] { background: #F3EFE6 !important; }
+html, body, [data-testid="stAppViewContainer"] { background: #F8FAFC !important; }
+[data-testid="stHeader"] { background: rgba(248,250,252,0.9) !important; }
+[data-testid="stSidebar"] { background: #FFFFFF !important; border-right: 1px solid #E2E8F0 !important; }
 .block-container { padding-top: 1.6rem !important; max-width: 1280px; }
-h1 { font-family: 'Helvetica Neue', 'Microsoft YaHei', 'PingFang SC', sans-serif !important; font-weight: 900 !important; font-size: 2.6rem !important; color: #111 !important; letter-spacing: -0.02em !important; }
-h2 { font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif !important; font-weight: 800 !important; font-size: 1.45rem !important; color: #111 !important; }
-h3 { font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif !important; font-weight: 700 !important; color: #111 !important; }
-p, .stMarkdown { color: #333 !important; font-family: 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif !important; line-height: 1.75 !important; }
-[data-testid="stCaptionContainer"] p { color: #777 !important; font-size: 0.84rem !important; }
-.stButton > button, [data-testid="stBaseButton"] button { background: #7C4DFF !important; color: #FFF !important; border: none !important; border-radius: 0 !important; font-weight: 700 !important; letter-spacing: 0.02em !important; }
-.stButton > button:hover, [data-testid="stBaseButton"] button:hover { background: #651FFF !important; color: #FFF !important; }
-.stTextInput input, [data-testid="stTextInput"] input { background: transparent !important; border: none !important; border-bottom: 2px solid #111 !important; border-radius: 0 !important; color: #111 !important; box-shadow: none !important; }
-.stTextInput input:focus { border-bottom-color: #7C4DFF !important; }
-[data-testid="stMetric"] { background: transparent !important; border: none !important; padding: 8px 4px !important; }
-[data-testid="stMetricLabel"] { color: #777 !important; font-weight: 700 !important; text-transform: uppercase; font-size: 0.75rem !important; }
-[data-testid="stMetricValue"] { color: #111 !important; font-weight: 900 !important; font-size: 1.9rem !important; }
-hr { border-color: rgba(17,17,17,0.08) !important; }
-[data-testid="stDataFrame"] { border: none !important; }
-[data-testid="stSelectbox"] div[data-baseweb="select"] > div { background: transparent !important; border: none !important; border-bottom: 2px solid #111 !important; border-radius: 0 !important; }
-[data-testid="stSuccess"] { border-left: 4px solid #00C853 !important; border-radius: 0 !important; }
-[data-testid="stInfo"] { border-left: 4px solid #2979FF !important; border-radius: 0 !important; }
-[data-testid="stWarning"] { border-left: 4px solid #FFD600 !important; border-radius: 0 !important; }
-[data-testid="stError"] { border-left: 4px solid #FF5722 !important; border-radius: 0 !important; }
+h1 { font-family: 'Helvetica Neue', 'Microsoft YaHei', 'PingFang SC', sans-serif !important; font-weight: 900 !important; font-size: 2.4rem !important; color: #0F172A !important; letter-spacing: -0.02em !important; }
+h2 { font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif !important; font-weight: 800 !important; font-size: 1.4rem !important; color: #0F172A !important; }
+h3 { font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif !important; font-weight: 700 !important; color: #0F172A !important; }
+p, .stMarkdown { color: #334155 !important; font-family: 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif !important; line-height: 1.75 !important; }
+[data-testid="stCaptionContainer"] p { color: #64748B !important; font-size: 0.84rem !important; }
+.stButton > button, [data-testid="stBaseButton"] button { background: #4D9FFF !important; color: #FFFFFF !important; border: none !important; border-radius: 8px !important; font-weight: 600 !important; letter-spacing: 0.02em !important; }
+.stButton > button:hover, [data-testid="stBaseButton"] button:hover { background: #3B8BF5 !important; color: #FFF !important; }
+.stButton > button:active, [data-testid="stBaseButton"] button:active { background: #2E7AE6 !important; }
+.stTextInput input, [data-testid="stTextInput"] input { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 8px !important; color: #0F172A !important; box-shadow: none !important; }
+.stTextInput input:focus { border-color: #0066FF !important; box-shadow: 0 0 0 3px #E6F0FF !important; }
+[data-testid="stMetric"] { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-left: 4px solid #0066FF !important; border-radius: 8px !important; padding: 10px 14px !important; }
+[data-testid="stMetricLabel"] { color: #64748B !important; font-weight: 700 !important; text-transform: uppercase; font-size: 0.75rem !important; }
+[data-testid="stMetricValue"] { color: #0F172A !important; font-weight: 900 !important; font-size: 1.8rem !important; }
+hr { border-color: #E2E8F0 !important; }
+[data-testid="stDataFrame"] { border: 1px solid #E2E8F0 !important; border-radius: 8px !important; }
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 8px !important; }
+[data-testid="stSuccess"] { border-left: 4px solid #10B981 !important; border-radius: 8px !important; }
+[data-testid="stInfo"] { border-left: 4px solid #0066FF !important; border-radius: 8px !important; }
+[data-testid="stWarning"] { border-left: 4px solid #F59E0B !important; border-radius: 8px !important; }
+[data-testid="stError"] { border-left: 4px solid #EF4444 !important; border-radius: 8px !important; }
 </style>""", unsafe_allow_html=True)
 
-# GV 头部：巨型粗体标题 + 高饱和色块封面
+# 知乎蓝头部：巨型粗体标题 + 知乎蓝渐变封面
 st.markdown("""
-<div style="background: #7C4DFF; color: #FFFFFF; padding: 26px 30px; margin-bottom: 10px;">
-  <div style="font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif; font-weight: 900; font-size: 40px; letter-spacing: -0.02em; line-height: 1.15;">灾害应急案例AI萃取助手</div>
+<div style="background: linear-gradient(120deg, #0066FF, #0044AA); color: #FFFFFF; padding: 26px 30px; margin-bottom: 10px; border-radius: 10px;">
+  <div style="font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif; font-weight: 900; font-size: 38px; letter-spacing: -0.02em; line-height: 1.15;">灾害应急案例AI萃取助手</div>
   <div style="font-size: 13px; opacity: 0.92; font-weight: 500; margin-top: 6px; letter-spacing: 0.02em;">知乎黑客松 2026 · 知识炼金场 · 智能检索 → 案例萃取 → 案例分析 → AI综合复盘</div>
 </div>
 """, unsafe_allow_html=True)
@@ -685,7 +686,7 @@ st.markdown("---")
 # ============================================================
 # 第一层：智能检索区
 # ============================================================
-st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #2979FF; margin: 1.4rem 0 0.1rem;">🔍 第一层 · 智能检索</div>', unsafe_allow_html=True)
+st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #0066FF; margin: 1.4rem 0 0.1rem;">🔍 第一层 · 智能检索</div>', unsafe_allow_html=True)
 st.caption("输入关键词或点击快捷按钮，调用知乎搜索API检索灾害应急相关文章")
 
 col_kw, col_btn = st.columns([4, 1])
@@ -781,7 +782,7 @@ st.markdown("---")
 # ============================================================
 # 第二层：案例萃取卡片区
 # ============================================================
-st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #00C853; margin: 1.4rem 0 0.1rem;">🃏 第二层 · 案例萃取</div>', unsafe_allow_html=True)
+st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #10B981; margin: 1.4rem 0 0.1rem;">🃏 第二层 · 案例萃取</div>', unsafe_allow_html=True)
 st.caption("从原文提取四维信息，每条结论附原文证据片段，未提及标记⚠️")
 
 if not st.session_state.extracted_cases:
@@ -822,7 +823,7 @@ else:
 # ============================================================
 # 第三层：案例分析区
 # ============================================================
-st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #FF5722; margin: 1.4rem 0 0.1rem;">📊 第三层 · 案例分析</div>', unsafe_allow_html=True)
+st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #EF4444; margin: 1.4rem 0 0.1rem;">📊 第三层 · 案例分析</div>', unsafe_allow_html=True)
 st.caption("风险高亮、多案例横向对比、共性汇总")
 
 if not st.session_state.extracted_cases:
@@ -889,7 +890,7 @@ st.markdown("---")
 # ============================================================
 # 第四层：AI综合复盘区
 # ============================================================
-st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #7C4DFF; margin: 1.4rem 0 0.1rem;">🧠 第四层 · AI综合复盘</div>', unsafe_allow_html=True)
+st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #8B5CF6; margin: 1.4rem 0 0.1rem;">🧠 第四层 · AI综合复盘</div>', unsafe_allow_html=True)
 st.caption("知识卡片、复盘报告、追问深入")
 
 if not st.session_state.extracted_cases:
