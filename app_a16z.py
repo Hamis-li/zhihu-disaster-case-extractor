@@ -571,39 +571,40 @@ def cached_extract(text_hash, original_text, access_secret, model):
 st.set_page_config(page_title="灾害应急案例AI萃取助手", page_icon="🌊", layout="wide")
 
 # ============================================================
-# a16z 风格：沉稳精英科技商务 · 米白基底 + 暗金/酒红克制强调
+# 知乎蓝主题：专业蓝 · 知乎系配色（#0066FF 主色 + 蓝白灰文字层级）
 # ============================================================
 st.markdown("""<style>
-html, body, [data-testid="stAppViewContainer"] { background: #F7F5F1 !important; }
-[data-testid="stHeader"] { background: rgba(247,245,241,0.9) !important; }
-[data-testid="stSidebar"] { background: #EFEBE3 !important; border-right: 1px solid #E2DCD2 !important; }
-.block-container { padding-top: 2.2rem !important; max-width: 1200px; }
-h1, h2, h3 { font-family: Georgia, 'Songti SC', 'SimSun', serif !important; color: #1A1A1A !important; font-weight: 700 !important; }
-h2 { border-bottom: 1px solid #E2DCD2 !important; padding-bottom: 8px !important; margin-top: 1.6rem !important; }
-h3 { font-size: 1.22rem !important; }
-p, .stMarkdown { color: #2B2B2B !important; font-family: 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif !important; }
-[data-testid="stCaptionContainer"] p { color: #8A7A5C !important; font-size: 0.84rem !important; letter-spacing: 0.04em; }
-.stButton > button, [data-testid="stBaseButton"] button { background: #8E3B46 !important; color: #FDF9F3 !important; border: none !important; border-radius: 2px !important; font-weight: 600 !important; letter-spacing: 0.04em !important; padding: 0.55rem 1.1rem !important; }
-.stButton > button:hover, [data-testid="stBaseButton"] button:hover { background: #A03139 !important; color: #FFF !important; }
-.stTextInput input, [data-testid="stTextInput"] input { background: #FFFDF9 !important; border: 1px solid #D8D2C6 !important; border-radius: 2px !important; color: #1A1A1A !important; }
-.stTextInput input:focus { border-color: #C9A227 !important; box-shadow: none !important; }
-[data-testid="stMetric"] { background: #EFEBE3 !important; border-left: 3px solid #C9A227 !important; padding: 12px 16px !important; border-radius: 2px !important; }
-[data-testid="stMetricLabel"] { color: #8A7A5C !important; font-weight: 600 !important; }
-[data-testid="stMetricValue"] { color: #1A1A1A !important; font-weight: 700 !important; }
-hr { border-color: #E2DCD2 !important; }
-[data-testid="stDataFrame"] { border: 1px solid #E2DCD2 !important; border-radius: 2px !important; }
-[data-testid="stSelectbox"] div[data-baseweb="select"] > div { background: #FFFDF9 !important; border-color: #D8D2C6 !important; border-radius: 2px !important; }
-[data-testid="stSuccess"] { border-left: 3px solid #8E3B46 !important; border-radius: 2px !important; }
-[data-testid="stInfo"] { border-left: 3px solid #C9A227 !important; border-radius: 2px !important; }
-[data-testid="stWarning"] { border-left: 3px solid #C9A227 !important; border-radius: 2px !important; }
-[data-testid="stError"] { border-left: 3px solid #A03139 !important; border-radius: 2px !important; }
+html, body, [data-testid="stAppViewContainer"] { background: #F8FAFC !important; }
+[data-testid="stHeader"] { background: rgba(248,250,252,0.9) !important; }
+[data-testid="stSidebar"] { background: #FFFFFF !important; border-right: 1px solid #E2E8F0 !important; }
+.block-container { padding-top: 1.6rem !important; max-width: 1280px; }
+h1 { font-family: 'Helvetica Neue', 'Microsoft YaHei', 'PingFang SC', sans-serif !important; font-weight: 900 !important; font-size: 2.4rem !important; color: #0F172A !important; letter-spacing: -0.02em !important; }
+h2 { font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif !important; font-weight: 800 !important; font-size: 1.4rem !important; color: #0F172A !important; }
+h3 { font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif !important; font-weight: 700 !important; color: #0F172A !important; }
+p, .stMarkdown { color: #334155 !important; font-family: 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif !important; line-height: 1.75 !important; }
+[data-testid="stCaptionContainer"] p { color: #64748B !important; font-size: 0.84rem !important; }
+.stButton > button, [data-testid="stBaseButton"] button { background: #4D9FFF !important; color: #FFFFFF !important; border: none !important; border-radius: 8px !important; font-weight: 600 !important; letter-spacing: 0.02em !important; }
+.stButton > button:hover, [data-testid="stBaseButton"] button:hover { background: #3B8BF5 !important; color: #FFF !important; }
+.stButton > button:active, [data-testid="stBaseButton"] button:active { background: #2E7AE6 !important; }
+.stTextInput input, [data-testid="stTextInput"] input { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 8px !important; color: #0F172A !important; box-shadow: none !important; }
+.stTextInput input:focus { border-color: #0066FF !important; box-shadow: 0 0 0 3px #E6F0FF !important; }
+[data-testid="stMetric"] { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-left: 4px solid #0066FF !important; border-radius: 8px !important; padding: 10px 14px !important; }
+[data-testid="stMetricLabel"] { color: #64748B !important; font-weight: 700 !important; text-transform: uppercase; font-size: 0.75rem !important; }
+[data-testid="stMetricValue"] { color: #0F172A !important; font-weight: 900 !important; font-size: 1.8rem !important; }
+hr { border-color: #E2E8F0 !important; }
+[data-testid="stDataFrame"] { border: 1px solid #E2E8F0 !important; border-radius: 8px !important; }
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 8px !important; }
+[data-testid="stSuccess"] { border-left: 4px solid #10B981 !important; border-radius: 8px !important; }
+[data-testid="stInfo"] { border-left: 4px solid #0066FF !important; border-radius: 8px !important; }
+[data-testid="stWarning"] { border-left: 4px solid #F59E0B !important; border-radius: 8px !important; }
+[data-testid="stError"] { border-left: 4px solid #EF4444 !important; border-radius: 8px !important; }
 </style>""", unsafe_allow_html=True)
 
-# a16z 头部：衬线大标题 + 暗金下划线
+# 知乎蓝头部：巨型粗体标题 + 知乎蓝渐变封面
 st.markdown("""
-<div style="border-bottom: 2px solid #C9A227; padding-bottom: 16px; margin-bottom: 6px;">
-  <div style="font-family: Georgia, 'Songti SC', serif; font-size: 36px; font-weight: 700; color: #1A1A1A; letter-spacing: 0.01em;">灾害应急案例AI萃取助手</div>
-  <div style="color: #8A7A5C; font-size: 13px; letter-spacing: 0.06em; margin-top: 4px;">知乎黑客松 2026 · 知识炼金场 · 智能检索 → 案例萃取 → 案例分析 → AI综合复盘</div>
+<div style="background: linear-gradient(120deg, #0066FF, #0044AA); color: #FFFFFF; padding: 26px 30px; margin-bottom: 10px; border-radius: 10px;">
+  <div style="font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif; font-weight: 900; font-size: 38px; letter-spacing: -0.02em; line-height: 1.15;">灾害应急案例AI萃取助手</div>
+  <div style="font-size: 13px; opacity: 0.92; font-weight: 500; margin-top: 6px; letter-spacing: 0.02em;">知乎黑客松 2026 · 知识炼金场 · 智能检索 → 案例萃取 → 案例分析 → AI综合复盘</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -619,6 +620,8 @@ if "last_error" not in st.session_state:
 # 部署环境（Streamlit secrets / 环境变量）已预置密钥时，评委可直接使用，无需输入
 _deploy_secret = env_secret()
 with st.sidebar:
+    st.image("assets/kanshan/idle.gif", width=96)
+    st.caption("🐾 刘看山陪你学习应急案例")
     st.header("⚙️ 配置")
     if _deploy_secret:
         st.caption("✅ 已从部署环境加载密钥，可直接使用；如需覆盖可输入")
@@ -683,7 +686,7 @@ st.markdown("---")
 # ============================================================
 # 第一层：智能检索区
 # ============================================================
-st.header("🔍 第一层 · 智能检索")
+st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #0066FF; margin: 1.4rem 0 0.1rem;">🔍 第一层 · 智能检索</div>', unsafe_allow_html=True)
 st.caption("输入关键词或点击快捷按钮，调用知乎搜索API检索灾害应急相关文章")
 
 col_kw, col_btn = st.columns([4, 1])
@@ -767,6 +770,9 @@ if st.session_state.search_results:
                 progress.progress((idx + 1) / len(selected_indices))
             if st.session_state.extracted_cases:
                 st.success(f"✅ 萃取完成，共 {len(st.session_state.extracted_cases)} 个案例")
+                col_c, _, _ = st.columns([1, 3, 1])
+                col_c.image("assets/kanshan/wave.gif", width=72)
+                col_c.caption("刘看山：案例已就绪，去分析吧！")
             else:
                 err = st.session_state.get("last_error", "")
                 st.error(f"萃取失败，请检查 Access Secret 与接口连通性。{('原因: ' + err) if err else ''}")
@@ -776,7 +782,7 @@ st.markdown("---")
 # ============================================================
 # 第二层：案例萃取卡片区
 # ============================================================
-st.header("🃏 第二层 · 案例萃取")
+st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #10B981; margin: 1.4rem 0 0.1rem;">🃏 第二层 · 案例萃取</div>', unsafe_allow_html=True)
 st.caption("从原文提取四维信息，每条结论附原文证据片段，未提及标记⚠️")
 
 if not st.session_state.extracted_cases:
@@ -817,7 +823,7 @@ else:
 # ============================================================
 # 第三层：案例分析区
 # ============================================================
-st.header("📊 第三层 · 案例分析")
+st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #EF4444; margin: 1.4rem 0 0.1rem;">📊 第三层 · 案例分析</div>', unsafe_allow_html=True)
 st.caption("风险高亮、多案例横向对比、共性汇总")
 
 if not st.session_state.extracted_cases:
@@ -884,7 +890,7 @@ st.markdown("---")
 # ============================================================
 # 第四层：AI综合复盘区
 # ============================================================
-st.header("🧠 第四层 · AI综合复盘")
+st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #8B5CF6; margin: 1.4rem 0 0.1rem;">🧠 第四层 · AI综合复盘</div>', unsafe_allow_html=True)
 st.caption("知识卡片、复盘报告、追问深入")
 
 if not st.session_state.extracted_cases:
