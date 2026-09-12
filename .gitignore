@@ -1,0 +1,22 @@
+# 密钥与凭证 - 严禁提交
+.streamlit/secrets.toml
+secrets.toml
+*.secret
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 本地备份与临时文件
+*_backup_*.py
+zhihu-cli-skill.zip
+zhihu-cli-skill/
+
+# 赛事资料与压缩包（不入库）
+*.zip
+*.png
+知乎黑客松校园季-技术指南.md
+占位文案.docx
