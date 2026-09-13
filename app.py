@@ -28,6 +28,13 @@ MODEL_FAST = "zhida-fast-1p5"          # 快速回答
 MODEL_THINKING = "zhida-thinking-1p5"  # 深度思考
 MODEL_AGENT = "zhida-agent"            # 智能检索生成
 
+# ===== 知乎 OAuth 登录（黑客松官方协议 2026-09-13 核验） =====
+ZHIHU_OAUTH_AUTHORIZE = "https://openapi.zhihu.com/authorize"      # 授权页
+ZHIHU_OAUTH_TOKEN = "https://openapi.zhihu.com/access_token"       # 换 token
+ZHIHU_OAUTH_USER = "https://openapi.zhihu.com/user"                # 用户基础信息
+# 默认回调地址 = 提报表单登记的 Demo 链接（提报时回调留空=作品链接）
+DEFAULT_REDIRECT_URI = "https://zhihu-disaster-case-extractor-kqojwnlr7fdrzhesgew7ma.streamlit.app"
+
 # 业务错误码
 ERROR_MAP = {
     10001: "参数错误",
@@ -111,6 +118,170 @@ def env_secret():
     except Exception:
         s = ""
     return s or os.environ.get("ZHIHU_ACCESS_SECRET", "")
+
+
+# ============================================================
+# 知乎 OAuth 登录（人气奖：接入知乎登录的用户数）
+# 官方协议：authorize 授权 -> authorization_code 回调 -> access_token -> /user
+# App ID / App Key 由黑客松赛事页面分配，配置在 Streamlit Secrets：
+#   ZHIHU_OAUTH_APP_ID / ZHIHU_OAUTH_APP_KEY / ZHIHU_OAUTH_REDIRECT_URI（可选）
+# ============================================================
+
+def oauth_config():
+    """
+    读取 OAuth 配置。优先级：Streamlit secrets -> 环境变量。
+    App ID 可公开；App Key 必须留在服务端（secrets），不进源码。
+    返回 (app_id, app_key, redirect_uri)；未配置返回空串。
+    """
+    try:
+        app_id = st.secrets.get("ZHIHU_OAUTH_APP_ID", "")
+    except Exception:
+        app_id = ""
+    try:
+        app_key = st.secrets.get("ZHIHU_OAUTH_APP_KEY", "")
+    except Exception:
+        app_key = ""
+    try:
+        redirect_uri = st.secrets.get("ZHIHU_OAUTH_REDIRECT_URI", "")
+    except Exception:
+        redirect_uri = ""
+    app_id = app_id or os.environ.get("ZHIHU_OAUTH_APP_ID", "")
+    app_key = app_key or os.environ.get("ZHIHU_OAUTH_APP_KEY", "")
+    redirect_uri = redirect_uri or os.environ.get("ZHIHU_OAUTH_REDIRECT_URI", "") or DEFAULT_REDIRECT_URI
+    return app_id, app_key, redirect_uri
+
+
+def build_oauth_auth_url(app_id, redirect_uri, state):
+    """
+    构造知乎授权页 URL（OAuth2 authorization code flow）。
+    参数：redirect_uri / app_id / response_type=code / state
+    """
+    import urllib.parse
+    params = {
+        "redirect_uri": redirect_uri,
+        "app_id": app_id,
+        "response_type": "code",
+        "state": state,
+    }
+    return ZHIHU_OAUTH_AUTHORIZE + "?" + urllib.parse.urlencode(params)
+
+
+def exchange_oauth_token(app_id, app_key, redirect_uri, code):
+    """
+    用 authorization_code 换取 OAuth access_token。
+    官方端点: POST https://openapi.zhihu.com/access_token (x-www-form-urlencoded)
+    成功返回 access_token 字符串；失败返回空串。
+    """
+    try:
+        resp = requests.post(
+            ZHIHU_OAUTH_TOKEN,
+            data={
+                "app_id": app_id,
+                "app_key": app_key,
+                "grant_type": "authorization_code",
+                "redirect_uri": redirect_uri,
+                "code": code,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=15,
+        )
+        data = resp.json()
+        return data.get("access_token", "")
+    except Exception as e:
+        record_error(f"OAuth 换取 token 失败: {e}")
+        return ""
+
+
+def fetch_oauth_user(access_token):
+    """
+    获取授权用户基础信息。
+    官方端点: GET https://openapi.zhihu.com/user
+    Authorization: Bearer <OAuth access_token>
+    成功返回用户 dict（含 fullname/avatar_path 等）；失败返回 None。
+    """
+    if not access_token:
+        return None
+    try:
+        resp = requests.get(
+            ZHIHU_OAUTH_USER,
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=15,
+        )
+        data = resp.json()
+        # 成功判据：存在有效用户标识（fullname / uid），不能只看 HTTP 200
+        if data and (data.get("fullname") or data.get("uid")):
+            return data
+        return None
+    except Exception as e:
+        record_error(f"OAuth 获取用户信息失败: {e}")
+        return None
+
+
+def handle_oauth_callback():
+    """
+    处理 OAuth 回调：页面 URL 携带 authorization_code（兼容 code）时，
+    换取 token -> 拉取用户信息 -> 存入 session_state -> 清理 URL 参数。
+    在侧边栏/主界面渲染前调用。
+    """
+    try:
+        qp = st.query_params
+    except Exception:
+        return
+
+    code = qp.get("authorization_code") or qp.get("code")
+    if not code:
+        return
+    if isinstance(code, list):
+        code = code[0] if code else ""
+    if not code:
+        return
+
+    # 已登录则忽略重复回调
+    if st.session_state.get("oauth_user"):
+        _clear_oauth_params(qp)
+        return
+
+    app_id, app_key, redirect_uri = oauth_config()
+    if not (app_id and app_key):
+        st.session_state["oauth_error"] = "OAuth 未配置（缺少 App ID / App Key）"
+        _clear_oauth_params(qp)
+        return
+
+    # state 校验：官方黑客松协议支持 state 透传；若平台未返回则不阻塞登录
+    state = qp.get("state")
+    if isinstance(state, list):
+        state = state[0] if state else ""
+    saved_state = st.session_state.get("oauth_state", "")
+    if saved_state and state and state != saved_state:
+        st.session_state["oauth_error"] = "登录校验失败（state 不匹配），请重试"
+        _clear_oauth_params(qp)
+        return
+
+    with st.spinner("正在完成知乎登录..."):
+        access_token = exchange_oauth_token(app_id, app_key, redirect_uri, code)
+        if access_token:
+            user = fetch_oauth_user(access_token)
+            if user:
+                st.session_state["oauth_user"] = user
+                st.session_state.pop("oauth_error", None)
+            else:
+                st.session_state["oauth_error"] = "登录失败：无法获取用户信息"
+        else:
+            st.session_state["oauth_error"] = "登录失败：换取令牌失败"
+
+    st.session_state.pop("oauth_state", None)
+    _clear_oauth_params(qp)
+    st.rerun()
+
+
+def _clear_oauth_params(qp):
+    """清理回调后残留的 URL 参数（authorization_code / code / state）。"""
+    for key in ("authorization_code", "code", "state"):
+        try:
+            if key in qp:
+                del qp[key]
+        except Exception:
+            pass
 
 
 # ============================================================
@@ -571,6 +742,11 @@ def cached_extract(text_hash, original_text, access_secret, model):
 st.set_page_config(page_title="灾害应急案例AI萃取助手", page_icon="🌊", layout="wide")
 
 # ============================================================
+# OAuth 回调处理（必须在侧边栏/主界面渲染前执行）
+# ============================================================
+handle_oauth_callback()
+
+# ============================================================
 # 知乎蓝主题：专业蓝 · 知乎系配色（#0066FF 主色 + 蓝白灰文字层级）
 # ============================================================
 st.markdown("""<style>
@@ -615,6 +791,12 @@ if "extracted_cases" not in st.session_state:
     st.session_state.extracted_cases = []
 if "last_error" not in st.session_state:
     st.session_state.last_error = ""
+if "oauth_user" not in st.session_state:
+    st.session_state.oauth_user = None
+if "oauth_state" not in st.session_state:
+    st.session_state.oauth_state = ""
+if "oauth_error" not in st.session_state:
+    st.session_state.oauth_error = ""
 
 # ===== 侧边栏：Access Secret 配置与API测试 =====
 # 部署环境（Streamlit secrets / 环境变量）已预置密钥时，评委可直接使用，无需输入
@@ -622,6 +804,38 @@ _deploy_secret = env_secret()
 with st.sidebar:
     st.image("assets/bell.png", width=96)
     st.caption("🔔 应急警钟陪你学习应急案例")
+
+    # ===== 知乎账号登录（OAuth，人气奖参考：接入知乎登录的用户数） =====
+    st.markdown("### 👤 知乎账号登录")
+    oauth_app_id, oauth_app_key, oauth_redirect = oauth_config()
+    oauth_user = st.session_state.get("oauth_user")
+    oauth_error = st.session_state.get("oauth_error", "")
+    if oauth_user:
+        # 已登录：显示用户信息
+        st.success(f"✅ 已登录：{oauth_user.get('fullname', '知乎用户')}")
+        avatar = oauth_user.get("avatar_path", "")
+        if avatar:
+            st.image(avatar, width=48)
+        st.caption("感谢登录支持！人气奖以接入知乎登录的用户数为重要参考")
+        if st.button("🚪 退出登录", key="oauth_logout"):
+            st.session_state.oauth_user = None
+            st.rerun()
+    elif oauth_app_id and oauth_app_key:
+        # 未登录但有配置：显示登录按钮
+        st.caption("登录知乎账号，支持应急有我队冲人气奖")
+        if st.button("🔑 登录知乎账号", key="oauth_login", type="primary"):
+            import secrets as _secrets
+            state = _secrets.token_urlsafe(16)
+            st.session_state.oauth_state = state
+            auth_url = build_oauth_auth_url(oauth_app_id, oauth_redirect, state)
+            st.markdown(f'<a href="{auth_url}" target="_self" style="display:inline-block;margin-top:6px;">👉 点此跳转知乎授权页</a>', unsafe_allow_html=True)
+    else:
+        # 未配置 OAuth
+        st.caption("⚙️ 尚未配置知乎登录（需在部署 Secrets 配置 App ID / App Key）")
+    if oauth_error:
+        st.warning(oauth_error)
+    st.markdown("---")
+
     st.header("⚙️ 配置")
     if _deploy_secret:
         st.caption("✅ 已从部署环境加载密钥，可直接使用；如需覆盖可输入")
