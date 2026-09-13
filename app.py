@@ -9,7 +9,7 @@ import pandas as pd
 import concurrent.futures
 
 # ============================================================
-# 灾害应急案例AI萃取助手 - 完整四层流程
+# 知危鉴 · 灾害应急案例AI萃取助手 - 完整四层流程
 # 赛事：知乎黑客松 2026 校园新锐季 · 知识炼金场赛道
 # 架构：智能检索 → 案例萃取 → 案例分析 → AI综合复盘
 # 接口：按官方 zhihu-cli skill 0.7.2（HTTP API）实现
@@ -811,7 +811,7 @@ def export_cases_markdown(extracted_cases, commonality_summary="", review_report
     if not extracted_cases:
         return ""
 
-    lines = ["# 灾害应急案例AI萃取报告\n"]
+    lines = ["# 知危鉴 · 灾害应急案例AI萃取报告\n"]
     lines.append(f"> 生成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}\n")
 
     for i, case in enumerate(extracted_cases, 1):
@@ -837,7 +837,7 @@ def export_cases_markdown(extracted_cases, commonality_summary="", review_report
         lines.append(f"\n---\n\n## 复盘报告\n\n{review_report}\n")
 
     lines.append("\n---\n")
-    lines.append("\n*本报告由灾害应急案例AI萃取助手自动生成，所有结论严格基于原文证据片段，未提及内容已标注。*\n")
+    lines.append("\n*本报告由知危鉴自动生成，所有结论严格基于原文证据片段，未提及内容已标注。*\n")
     return "\n".join(lines)
 
 
@@ -871,7 +871,7 @@ def cached_extract(text_hash, original_text, access_secret, model, title="", aut
 # ============================================================
 # 页面配置
 # ============================================================
-st.set_page_config(page_title="灾害应急案例AI萃取助手", page_icon="🌊", layout="wide")
+st.set_page_config(page_title="知危鉴 · 灾害应急案例AI萃取助手", page_icon="🌊", layout="wide")
 
 # ============================================================
 # OAuth 回调处理（必须在侧边栏/主界面渲染前执行）
@@ -946,8 +946,8 @@ hr { border-color: #E2E8F0 !important; }
 # 知乎蓝头部：巨型粗体标题 + 知乎蓝渐变封面
 st.markdown("""
 <div style="background: linear-gradient(120deg, #0066FF, #0044AA); color: #FFFFFF; padding: 26px 30px; margin-bottom: 10px; border-radius: 10px;">
-  <div style="font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif; font-weight: 900; font-size: 38px; letter-spacing: -0.02em; line-height: 1.15;">灾害应急案例AI萃取助手</div>
-  <div style="font-size: 13px; opacity: 0.92; font-weight: 500; margin-top: 6px; letter-spacing: 0.02em;">知乎黑客松 2026 · 知识炼金场 · 智能检索 → 案例萃取 → 案例分析 → AI综合复盘</div>
+  <div style="font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif; font-weight: 900; font-size: 38px; letter-spacing: -0.02em; line-height: 1.15;">知危鉴 <span style="font-size:18px; font-weight:600; opacity:0.8;">· 灾害应急案例AI萃取助手</span></div>
+  <div style="font-size: 13px; opacity: 0.92; font-weight: 500; margin-top: 6px; letter-spacing: 0.02em;">让每一条应急经验都有据可查 · 知乎黑客松 2026 · 知识炼金场</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -984,7 +984,7 @@ if "restored_hint" not in st.session_state:
 _deploy_secret = env_secret()
 with st.sidebar:
     st.image("assets/bell.png", width=96)
-    st.caption("🔔 应急警钟陪你学习应急案例")
+    st.caption("知危鉴 · 🔔 应急警钟陪你萃取案例知识")
 
     # ===== 知乎账号登录（OAuth，人气奖参考：接入知乎登录的用户数） =====
     st.markdown("### 👤 知乎账号登录")
@@ -1447,7 +1447,7 @@ else:
         st.download_button(
             label="⬇️ 下载 Markdown 报告",
             data=export_md,
-            file_name=f"灾害应急案例报告_{time.strftime('%Y%m%d_%H%M')}.md",
+            file_name=f"知危鉴_应急案例报告_{time.strftime('%Y%m%d_%H%M')}.md",
             mime="text/markdown",
             use_container_width=True,
         )
@@ -1509,6 +1509,6 @@ st.markdown("""<div style="background:#F8FAFC; border:1px solid #E2E8F0; border-
 四维萃取：事件概况 · 风险因素 · 应急处置措施 · 经验教训 · 每条附原文溯源
 </div>
 <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #E2E8F0; color:#94A3B8; font-size:0.78rem;">
-灾害应急案例AI萃取助手 · 知乎黑客松 2026 校园新锐季 · 知识炼金场 · 应急有我团队
+知危鉴 · 灾害应急案例AI萃取助手 · 知乎黑客松 2026 校园新锐季 · 知识炼金场 · 应急有我团队
 </div>
 </div>""", unsafe_allow_html=True)
