@@ -192,11 +192,14 @@ def exchange_oauth_token(app_id, app_key, redirect_uri, code):
         return ""
 
 
-def fetch_oauth_user(access_token):
+def fetch_oauth_user(access_token, access_secret):
     """
-    获取授权用户基础信息。
+    获取授权用户基础信息（按官方可运行模板 oauth.mjs 核验 2026-09-13）。
     官方端点: GET https://openapi.zhihu.com/user
-    Authorization: Bearer <OAuth access_token>
+    鉴权头（三头缺一不可，按官方模板实现）：
+      Authorization: Bearer <Access Secret>      # 开放平台调用方凭证
+      X-OAuth-Token: <OAuth access_token>        # 授权用户 OAuth 令牌
+      X-Request-Timestamp: <Unix 秒级时间戳>
     成功返回用户 dict（含 fullname/avatar_path 等）；失败返回 None。
     """
     if not access_token:
@@ -204,13 +207,19 @@ def fetch_oauth_user(access_token):
     try:
         resp = requests.get(
             ZHIHU_OAUTH_USER,
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers={
+                "Authorization": f"Bearer {access_secret}",
+                "X-OAuth-Token": access_token,
+                "X-Request-Timestamp": str(int(time.time())),
+                "Content-Type": "application/json",
+            },
             timeout=15,
         )
         data = resp.json()
         # 成功判据：存在有效用户标识（fullname / uid），不能只看 HTTP 200
-        if data and (data.get("fullname") or data.get("uid")):
-            return data
+        source = data.get("data") or data.get("Data") or data
+        if source and isinstance(source, dict) and (source.get("fullname") or source.get("uid")):
+            return source
         return None
     except Exception as e:
         record_error(f"OAuth 获取用户信息失败: {e}")
