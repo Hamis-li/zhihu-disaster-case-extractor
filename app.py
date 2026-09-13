@@ -64,6 +64,7 @@ EXTRACT_PROMPT_TEMPLATE = """你是应急案例信息抽取专家，**只允许�
 1. 如果原文没有对应信息，字段内容写：⚠️原文未提及，不需要编造内容。
 2. 每一条提取结论，必须附上原文截取的证据片段。
 3. 不要扩写、不要推断原文不存在的信息，不要臆测。
+4. 标题、作者、评论可作为辅助理解上下文，但证据片段只能引用正文原文。
 输出格式（严格JSON）：
 {
   "事件概况": {"内容": "xxx", "证据片段": "原文摘抄xxx"},
@@ -324,7 +325,7 @@ def _clear_oauth_params(qp):
 # 第一层：智能检索 - 函数定义
 # ============================================================
 
-def zhihu_search(keyword, access_secret):
+def zhihu_search(keyword, access_secret, count=10):
     """
     调用知乎搜索API，根据关键词检索灾害应急相关文章。
     官方端点: GET https://developer.zhihu.com/api/v1/content/zhihu_search
@@ -334,6 +335,7 @@ def zhihu_search(keyword, access_secret):
     入参:
         keyword (str): 搜索关键词
         access_secret (str): 开放平台 Access Secret
+        count (int): 返回数量，最大10
     返回:
         list[dict]: 搜索结果列表
     """
@@ -341,7 +343,7 @@ def zhihu_search(keyword, access_secret):
         return []
 
     url = ZHIHU_API_BASE + ZHIHU_SEARCH_PATH
-    params = {"Query": keyword, "Count": 10}
+    params = {"Query": keyword, "Count": min(count, 10)}
     try:
         resp = requests.get(url, headers=build_headers(access_secret),
                             params=params, timeout=15)
@@ -351,6 +353,7 @@ def zhihu_search(keyword, access_secret):
             items = data.get("Data", {}).get("Items", []) or []
             results = []
             for it in items:
+                comment_list = it.get("CommentInfoList") or []
                 results.append({
                     "title": it.get("Title", ""),
                     "id": str(it.get("ContentID", "")),
@@ -358,6 +361,9 @@ def zhihu_search(keyword, access_secret):
                     "excerpt": clean_text(it.get("ContentText", "")),
                     "author": it.get("AuthorName", ""),
                     "voteup": it.get("VoteUpCount", 0),
+                    "comments": [c.get("Content", "") for c in comment_list if c.get("Content")],
+                    "authority_level": it.get("AuthorityLevel", ""),
+                    "content_type": it.get("ContentType", ""),
                 })
             return results
         else:
@@ -410,16 +416,29 @@ def call_zhihu_agent(messages, access_secret, model=MODEL_FAST):
         return ""
 
 
-def extract_case_info(original_text, access_secret, model=MODEL_FAST):
+def extract_case_info(original_text, access_secret, model=MODEL_FAST, title="", author="", comments=None):
     """
     案例萃取：调用直答Agent，按四维结构化提取案例信息。
     防幻觉：每条结论必附原文证据片段，未提及标记⚠️原文未提及。
+    萃取输入包含标题/作者/精选评论作为辅助上下文，提升信息覆盖度。
     """
     if not original_text:
         return {}
 
+    # 构造辅助上下文（不替代原文，仅帮助 LLM 理解场景）
+    context_parts = []
+    if title:
+        context_parts.append(f"【标题】{title}")
+    if author:
+        context_parts.append(f"【作者】{author}")
+    if comments:
+        comment_text = " | ".join(comments[:3])
+        context_parts.append(f"【精选评论】{comment_text}")
+    context = "\n".join(context_parts)
+
+    full_input = f"{context}\n\n原文：\n{original_text[:6000]}" if context else original_text[:6000]
     # 用占位符替换而非 format()：模板内含 JSON 示例大括号，format 会误解析为占位符
-    prompt = EXTRACT_PROMPT_TEMPLATE.replace("__ORIGINAL_TEXT__", original_text[:6000])  # 截断防超长
+    prompt = EXTRACT_PROMPT_TEMPLATE.replace("__ORIGINAL_TEXT__", full_input)
     messages = [
         {"role": "system", "content": "你是应急案例信息抽取专家，严格基于原文，不编造。"},
         {"role": "user", "content": prompt},
@@ -759,17 +778,71 @@ def get_quota(access_secret):
 
 
 # ============================================================
+# 导出功能：将萃取结果导出为 Markdown 报告
+# ============================================================
+
+def export_cases_markdown(extracted_cases, commonality_summary="", review_report=""):
+    """
+    将已萃取案例、共性分析、复盘报告汇总为 Markdown 文本，供下载。
+    """
+    if not extracted_cases:
+        return ""
+
+    lines = ["# 灾害应急案例AI萃取报告\n"]
+    lines.append(f"> 生成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+
+    for i, case in enumerate(extracted_cases, 1):
+        lines.append(f"\n---\n\n## 案例{i}：{case.get('title', '未知')}\n")
+        lines.append(f"**原文链接**：{case.get('url', '无')}\n")
+        extract = case.get("extract", {})
+        completeness = extract.get("completeness", {})
+        if completeness:
+            lines.append(f"\n**完整度**：{completeness.get('percent', '—')}（✅{completeness.get('has_evidence', 0)} / ⚠️{completeness.get('missing', 0)}）\n")
+        for dim_name, dim_emoji in DIMENSIONS:
+            d = extract.get(dim_name, {})
+            content = d.get("内容", "")
+            evidence = d.get("证据片段", "")
+            lines.append(f"\n### {dim_emoji} {dim_name}\n")
+            lines.append(f"{content if content else '⚠️原文未提及'}\n")
+            if evidence and "⚠️" not in content:
+                lines.append(f"\n> 📖 证据片段：{evidence}\n")
+
+    if commonality_summary:
+        lines.append(f"\n---\n\n## 共性分析\n\n{commonality_summary}\n")
+
+    if review_report:
+        lines.append(f"\n---\n\n## 复盘报告\n\n{review_report}\n")
+
+    lines.append("\n---\n")
+    lines.append("\n*本报告由灾害应急案例AI萃取助手自动生成，所有结论严格基于原文证据片段，未提及内容已标注。*\n")
+    return "\n".join(lines)
+
+
+# ============================================================
+# 搜索历史（会话级，不持久化）
+# ============================================================
+
+def add_search_history(keyword, count):
+    """记录搜索历史到 session_state，最多保留 5 条。"""
+    history = st.session_state.get("search_history", [])
+    entry = {"keyword": keyword, "count": count, "time": time.strftime("%H:%M")}
+    history = [h for h in history if h["keyword"] != keyword]
+    history.insert(0, entry)
+    st.session_state["search_history"] = history[:5]
+
+
+# ============================================================
 # 缓存装饰器（减少重复调用，适配限额）
 # ============================================================
 
 @st.cache_data(show_spinner=False, ttl=3600)
-def cached_search(keyword, access_secret):
-    return zhihu_search(keyword, access_secret)
+def cached_search(keyword, access_secret, count=10):
+    return zhihu_search(keyword, access_secret, count)
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
-def cached_extract(text_hash, original_text, access_secret, model):
-    return extract_case_info(original_text, access_secret, model)
+def cached_extract(text_hash, original_text, access_secret, model, title="", author="", comments=None):
+    return extract_case_info(original_text, access_secret, model, title=title, author=author, comments=comments)
 
 
 # ============================================================
@@ -795,8 +868,8 @@ h2 { font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif !important; fo
 h3 { font-family: 'Helvetica Neue', 'Microsoft YaHei', sans-serif !important; font-weight: 700 !important; color: #0F172A !important; }
 p, .stMarkdown { color: #334155 !important; font-family: 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif !important; line-height: 1.75 !important; }
 [data-testid="stCaptionContainer"] p { color: #64748B !important; font-size: 0.84rem !important; }
-.stButton > button, [data-testid="stBaseButton"] button { background: #4D9FFF !important; color: #FFFFFF !important; border: none !important; border-radius: 8px !important; font-weight: 600 !important; letter-spacing: 0.02em !important; }
-.stButton > button:hover, [data-testid="stBaseButton"] button:hover { background: #3B8BF5 !important; color: #FFF !important; }
+.stButton > button, [data-testid="stBaseButton"] button { background: #4D9FFF !important; color: #FFFFFF !important; border: none !important; border-radius: 8px !important; font-weight: 600 !important; letter-spacing: 0.02em !important; transition: all 0.2s ease !important; }
+.stButton > button:hover, [data-testid="stBaseButton"] button:hover { background: #3B8BF5 !important; color: #FFF !important; box-shadow: 0 2px 8px rgba(0,102,255,0.25) !important; }
 .stButton > button:active, [data-testid="stBaseButton"] button:active { background: #2E7AE6 !important; }
 .stTextInput input, [data-testid="stTextInput"] input { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 8px !important; color: #0F172A !important; box-shadow: none !important; }
 .stTextInput input:focus { border-color: #0066FF !important; box-shadow: 0 0 0 3px #E6F0FF !important; }
@@ -810,6 +883,26 @@ hr { border-color: #E2E8F0 !important; }
 [data-testid="stInfo"] { border-left: 4px solid #0066FF !important; border-radius: 8px !important; }
 [data-testid="stWarning"] { border-left: 4px solid #F59E0B !important; border-radius: 8px !important; }
 [data-testid="stError"] { border-left: 4px solid #EF4444 !important; border-radius: 8px !important; }
+
+/* 四维知识卡片彩色边框 */
+.dim-card-overview { border-left: 4px solid #0066FF !important; }
+.dim-card-risk { border-left: 4px solid #EF4444 !important; }
+.dim-card-measure { border-left: 4px solid #10B981 !important; }
+.dim-card-lesson { border-left: 4px solid #8B5CF6 !important; }
+
+/* 时间线节点样式 */
+.timeline-node { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 10px !important; padding: 12px !important; transition: box-shadow 0.2s ease !important; }
+.timeline-node:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important; }
+.timeline-node-done { border-top: 3px solid #10B981 !important; }
+.timeline-node-missing { border-top: 3px solid #F59E0B !important; }
+
+/* 搜索结果卡片悬停 */
+.search-result-card { transition: background 0.2s ease !important; border-radius: 8px !important; padding: 8px 12px !important; }
+.search-result-card:hover { background: #F1F5F9 !important; }
+
+/* 搜索历史标签 */
+.history-tag { display: inline-block; padding: 4px 10px; margin: 2px 4px 2px 0; background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 16px; font-size: 0.8rem; color: #334155; cursor: pointer; transition: all 0.2s; }
+.history-tag:hover { background: #E6F0FF; border-color: #0066FF; color: #0066FF; }
 </style>""", unsafe_allow_html=True)
 
 # 知乎蓝头部：巨型粗体标题 + 知乎蓝渐变封面
@@ -833,6 +926,12 @@ if "oauth_state" not in st.session_state:
     st.session_state.oauth_state = ""
 if "oauth_error" not in st.session_state:
     st.session_state.oauth_error = ""
+if "search_history" not in st.session_state:
+    st.session_state.search_history = []
+if "last_commonality" not in st.session_state:
+    st.session_state.last_commonality = ""
+if "last_report" not in st.session_state:
+    st.session_state.last_report = ""
 
 # ===== 侧边栏：Access Secret 配置与API测试 =====
 # 部署环境（Streamlit secrets / 环境变量）已预置密钥时，评委可直接使用，无需输入
@@ -868,6 +967,12 @@ with st.sidebar:
     else:
         # 未配置 OAuth
         st.caption("⚙️ 尚未配置知乎登录（需在部署 Secrets 配置 App ID / App Key）")
+        with st.expander("📋 OAuth 配置状态诊断"):
+            st.caption(f"App ID: {'✅ 已配置' if oauth_app_id else '❌ 未配置'}")
+            st.caption(f"App Key: {'✅ 已配置' if oauth_app_key else '❌ 未配置'}")
+            st.caption(f"回调地址: {oauth_redirect}")
+            st.caption("OAuth 是人气奖加分项，不影响主功能使用")
+            st.caption("凭证获取：赛事答疑群追问小助理 或 邮件 openplatform@zhihu.com")
     if oauth_error:
         st.warning(oauth_error)
     st.markdown("---")
@@ -931,6 +1036,22 @@ with st.sidebar:
     st.caption("默认每个能力每自然日 100 次，注意节约")
     st.write(f"已萃取案例数: {len(st.session_state.extracted_cases)}")
 
+    # 搜索历史
+    if st.session_state.get("search_history"):
+        st.markdown("---")
+        st.subheader("🕑 搜索历史")
+        for h in st.session_state["search_history"]:
+            st.caption(f"🔑 {h['keyword']} · {h['count']}条 · {h['time']}")
+
+    # 清空操作
+    if st.session_state.extracted_cases:
+        st.markdown("---")
+        if st.button("🗑️ 清空萃取结果", use_container_width=True):
+            st.session_state.extracted_cases = []
+            st.session_state.last_commonality = ""
+            st.session_state.last_report = ""
+            st.rerun()
+
 st.markdown("---")
 
 # ============================================================
@@ -939,13 +1060,15 @@ st.markdown("---")
 st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #0066FF; margin: 1.4rem 0 0.1rem;">🔍 第一层 · 智能检索</div>', unsafe_allow_html=True)
 st.caption("输入关键词或点击快捷按钮，调用知乎搜索API检索灾害应急相关文章")
 
-col_kw, col_btn = st.columns([4, 1])
+col_kw, col_cnt, col_btn = st.columns([5, 1.5, 1])
 with col_kw:
     keyword = st.text_input(
         "检索关键词",
         key="search_keyword",
         placeholder="例如：城市内涝、台风灾害、矿山事故、地质灾害应对",
     )
+with col_cnt:
+    result_count = st.select_slider("结果数", options=[3, 5, 10], value=10, key="result_count")
 with col_btn:
     st.write("")
     search_btn = st.button("检索", type="primary", use_container_width=True)
@@ -969,9 +1092,10 @@ if trigger:
         st.warning("请输入关键词或选择快捷案例")
     else:
         with st.spinner(f"正在检索：{actual_kw}..."):
-            results = cached_search(actual_kw, access_secret)
+            results = cached_search(actual_kw, access_secret, result_count)
         if results:
             st.session_state.search_results = results
+            add_search_history(actual_kw, len(results))
             st.success(f"找到 {len(results)} 条结果")
         else:
             err = st.session_state.get("last_error", "")
@@ -987,10 +1111,19 @@ if st.session_state.search_results:
             if st.checkbox("", key=f"chk_{i}"):
                 selected_indices.append(i)
         with col_show:
-            st.markdown(f"**{item.get('title', '无标题')}**")
-            st.caption(f"id: {item.get('id', '')} | 作者: {item.get('author', '')} | url: {item.get('url', '')}")
+            auth_level = item.get("authority_level", "")
+            auth_badge = ""
+            if auth_level == "4":
+                auth_badge = '<span style="background:#FEF3C7; color:#92400E; padding:1px 6px; border-radius:4px; font-size:0.7rem; font-weight:600;">超高权威</span>'
+            elif auth_level == "3":
+                auth_badge = '<span style="background:#DBEAFE; color:#1E40AF; padding:1px 6px; border-radius:4px; font-size:0.7rem; font-weight:600;">高权威</span>'
+            st.markdown(f"""<div class="search-result-card">
+            <b style="font-size:1.05rem; color:#0F172A;">{item.get('title', '无标题')}</b> {auth_badge}
+            <br><span style="color:#64748B; font-size:0.8rem;">作者: {item.get('author', '')} · 赞同: {item.get('voteup', 0)} · 类型: {item.get('content_type', '')}</span>
+            </div>""", unsafe_allow_html=True)
             if item.get("excerpt"):
-                st.write(item["excerpt"][:200] + "...")
+                st.caption(item["excerpt"][:200] + "...")
+            st.markdown(f"[🔗 查看原文]({item.get('url', '')})")
 
     if selected_indices and st.button("🃏 萃取选中案例", type="primary"):
         if not access_secret:
@@ -1008,7 +1141,12 @@ if st.session_state.search_results:
                         continue
                     import hashlib
                     text_hash = hashlib.md5(original_text.encode()).hexdigest()
-                    extract = cached_extract(text_hash, original_text, access_secret, model_choice)
+                    extract = cached_extract(
+                        text_hash, original_text, access_secret, model_choice,
+                        title=item.get("title", ""),
+                        author=item.get("author", ""),
+                        comments=item.get("comments", []),
+                    )
                     if extract:
                         st.session_state.extracted_cases.append({
                             "title": item.get("title", ""),
@@ -1052,8 +1190,10 @@ else:
         with col_c3:
             st.metric("⚠️ 未提及", completeness.get("missing", 0))
 
-        # 四维卡片
+        # 四维卡片（彩色边框区分维度）
         dim_cols = st.columns(4)
+        dim_classes = ["dim-card-overview", "dim-card-risk", "dim-card-measure", "dim-card-lesson"]
+        dim_colors = ["#0066FF", "#EF4444", "#10B981", "#8B5CF6"]
         for i, (dim_name, dim_emoji) in enumerate(DIMENSIONS):
             with dim_cols[i]:
                 d = extract.get(dim_name, {})
@@ -1061,8 +1201,11 @@ else:
                 evidence = d.get("证据片段", "")
                 is_missing = "⚠️原文未提及" in content or not content
                 status = "⚠️" if is_missing else "✅"
-                st.markdown(f"**{dim_emoji} {dim_name}** {status}")
-                st.markdown(content if content else "—")
+                border_color = dim_colors[i]
+                st.markdown(f"""<div class="{dim_classes[i]}" style="background:#FFFFFF; border:1px solid #E2E8F0; border-left:4px solid {border_color}; border-radius:8px; padding:12px; min-height:120px;">
+                <div style="font-weight:700; color:{border_color}; font-size:0.95rem; margin-bottom:6px;">{dim_emoji} {dim_name} {status}</div>
+                <div style="color:#334155; font-size:0.88rem; line-height:1.6;">{content if content else '—'}</div>
+                </div>""", unsafe_allow_html=True)
                 if evidence and not is_missing:
                     st.caption(f"📖 证据: {evidence[:150]}...")
 
@@ -1100,19 +1243,26 @@ else:
             with st.spinner("正在抽取时间线..."):
                 timeline = extract_timeline(st.session_state.extracted_cases[selected_case_idx], access_secret, model_choice)
             if timeline:
-                timeline_cols = st.columns(5)
                 timeline_nodes = ["预警", "发生", "响应", "处置", "复盘"]
+                timeline_emojis = ["🟡", "🔴", "🟠", "🟢", "🔵"]
+                timeline_cols = st.columns(5)
                 for i, node in enumerate(timeline_nodes):
                     with timeline_cols[i]:
                         node_data = timeline.get(node, {})
                         is_missing = "⚠️" in node_data.get("动作", "") or not node_data.get("动作")
                         status = "⚠️" if is_missing else "✅"
-                        st.markdown(f"**{node}** {status}")
-                        st.markdown(f"⏰ {node_data.get('时间', '—')}")
-                        st.markdown(f"📝 {node_data.get('动作', '—')}")
+                        css_class = "timeline-node-missing" if is_missing else "timeline-node-done"
+                        st.markdown(f"""<div class="timeline-node {css_class}" style="text-align:center;">
+                        <div style="font-size:1.5rem;">{timeline_emojis[i]}</div>
+                        <div style="font-weight:700; color:#0F172A; font-size:0.95rem; margin:4px 0;">{node} {status}</div>
+                        <div style="color:#64748B; font-size:0.75rem; margin-bottom:4px;">⏰ {node_data.get('时间', '—')}</div>
+                        <div style="color:#334155; font-size:0.82rem; line-height:1.5; text-align:left;">📝 {node_data.get('动作', '—')}</div>
+                        </div>""", unsafe_allow_html=True)
                         ev = node_data.get("证据", "")
                         if ev and "⚠️" not in ev:
-                            st.caption(f"📖 {ev[:120]}")
+                            st.caption(f"📖 {ev[:100]}")
+                # 箭头连接线
+                st.markdown("""<div style="text-align:center; color:#CBD5E1; font-size:1.2rem; margin:-4px 0 8px;">→ → → → →</div>""", unsafe_allow_html=True)
             else:
                 err = st.session_state.get("last_error", "")
                 st.error(f"时间线抽取失败. {err}")
@@ -1124,12 +1274,27 @@ else:
     df = compare_cases_table(st.session_state.extracted_cases)
     st.dataframe(df, use_container_width=True, hide_index=True)
 
+    # 完整度对比图
+    if len(st.session_state.extracted_cases) > 1:
+        st.subheader("📊 案例完整度对比")
+        chart_data = pd.DataFrame([
+            {
+                "案例": c.get("title", f"案例{i+1}")[:12],
+                "✅ 有依据": c.get("extract", {}).get("completeness", {}).get("has_evidence", 0),
+                "⚠️ 未提及": c.get("extract", {}).get("completeness", {}).get("missing", 0),
+            }
+            for i, c in enumerate(st.session_state.extracted_cases)
+        ])
+        st.bar_chart(chart_data.set_index("案例"), color=["#10B981", "#F59E0B"], use_container_width=True)
+        st.caption("绿色=有原文依据，黄色=原文未提及，对比多案例的信息覆盖度")
+
     # 共性汇总
     st.subheader("🔍 共性汇总")
     if access_secret and st.button("生成共性分析", type="primary"):
         with st.spinner("正在调用Agent生成共性分析..."):
             summary = summarize_commonality(st.session_state.extracted_cases, access_secret, model_choice)
         if summary:
+            st.session_state["last_commonality"] = summary
             st.markdown(summary)
         else:
             err = st.session_state.get("last_error", "")
@@ -1164,10 +1329,30 @@ else:
                 summary = summarize_commonality(st.session_state.extracted_cases, access_secret, model_choice)
                 report = generate_review_report(st.session_state.extracted_cases, summary, access_secret, model_choice)
             if report:
+                st.session_state["last_report"] = report
+                st.session_state["last_commonality"] = summary
                 st.markdown(report)
             else:
                 err = st.session_state.get("last_error", "")
                 st.error(f"失败. {err}")
+
+    # 导出报告
+    st.markdown("---")
+    st.subheader("📤 导出报告")
+    export_md = export_cases_markdown(
+        st.session_state.extracted_cases,
+        st.session_state.get("last_commonality", ""),
+        st.session_state.get("last_report", ""),
+    )
+    if export_md:
+        st.download_button(
+            label="⬇️ 下载 Markdown 报告",
+            data=export_md,
+            file_name=f"灾害应急案例报告_{time.strftime('%Y%m%d_%H%M')}.md",
+            mime="text/markdown",
+            use_container_width=True,
+        )
+        st.caption("含全部萃取案例、共性分析、复盘报告，可用于离线复盘与分享")
 
     # 追问
     st.markdown("---")
@@ -1195,4 +1380,13 @@ else:
 
 # 底部说明
 st.markdown("---")
-st.caption("🏗️ 所有信息严格基于原文证据片段 · 未提及标记⚠️原文未提及 · 防范大模型幻觉")
+st.markdown("""<div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:16px 20px; margin-top:10px;">
+<div style="font-weight:700; color:#0F172A; font-size:0.95rem; margin-bottom:8px;">🏗️ 防幻觉机制</div>
+<div style="color:#64748B; font-size:0.82rem; line-height:1.7;">
+所有萃取结论严格基于知乎原文证据片段 · 未提及内容标记⚠️原文未提及 · 不编造灾害数据与事件<br>
+四维萃取：事件概况 · 风险因素 · 应急处置措施 · 经验教训 · 每条附原文溯源
+</div>
+<div style="margin-top:10px; padding-top:10px; border-top:1px dashed #E2E8F0; color:#94A3B8; font-size:0.78rem;">
+灾害应急案例AI萃取助手 · 知乎黑客松 2026 校园新锐季 · 知识炼金场 · 应急有我团队
+</div>
+</div>""", unsafe_allow_html=True)
