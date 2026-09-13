@@ -18,5 +18,6 @@ zhihu-cli-skill/
 # 赛事资料与压缩包（不入库）
 *.zip
 *.png
+!assets/bell.png
 知乎黑客松校园季-技术指南.md
 占位文案.docx

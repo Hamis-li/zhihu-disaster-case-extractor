@@ -620,8 +620,8 @@ if "last_error" not in st.session_state:
 # 部署环境（Streamlit secrets / 环境变量）已预置密钥时，评委可直接使用，无需输入
 _deploy_secret = env_secret()
 with st.sidebar:
-    st.image("assets/kanshan/idle.gif", width=96)
-    st.caption("🐾 刘看山陪你学习应急案例")
+    st.image("assets/bell.png", width=96)
+    st.caption("🔔 应急警钟陪你学习应急案例")
     st.header("⚙️ 配置")
     if _deploy_secret:
         st.caption("✅ 已从部署环境加载密钥，可直接使用；如需覆盖可输入")
@@ -771,8 +771,8 @@ if st.session_state.search_results:
             if st.session_state.extracted_cases:
                 st.success(f"✅ 萃取完成，共 {len(st.session_state.extracted_cases)} 个案例")
                 col_c, _, _ = st.columns([1, 3, 1])
-                col_c.image("assets/kanshan/wave.gif", width=72)
-                col_c.caption("刘看山：案例已就绪，去分析吧！")
+                col_c.image("assets/bell.png", width=72)
+                col_c.caption("应急警钟：案例已就绪，去分析吧！")
             else:
                 err = st.session_state.get("last_error", "")
                 st.error(f"萃取失败，请检查 Access Secret 与接口连通性。{('原因: ' + err) if err else ''}")
