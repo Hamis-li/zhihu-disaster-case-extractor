@@ -925,6 +925,21 @@ hr { border-color: #E2E8F0 !important; }
 /* 搜索历史标签 */
 .history-tag { display: inline-block; padding: 4px 10px; margin: 2px 4px 2px 0; background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 16px; font-size: 0.8rem; color: #334155; cursor: pointer; transition: all 0.2s; }
 .history-tag:hover { background: #E6F0FF; border-color: #0066FF; color: #0066FF; }
+
+/* 收藏星标 */
+.bookmark-star { font-size: 1.2rem; cursor: pointer; transition: transform 0.2s; }
+.bookmark-star:hover { transform: scale(1.2); }
+
+/* 移动端适配：小屏幕四列变两列 */
+@media (max-width: 768px) {
+  .dim-card-overview, .dim-card-risk, .dim-card-measure, .dim-card-lesson {
+    margin-bottom: 8px !important;
+  }
+  [data-testid="stHorizontalBlock"] { gap: 0.3rem !important; }
+  h1 { font-size: 1.8rem !important; }
+  h2 { font-size: 1.2rem !important; }
+  .block-container { padding-top: 0.8rem !important; padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
+}
 </style>""", unsafe_allow_html=True)
 
 # 知乎蓝头部：巨型粗体标题 + 知乎蓝渐变封面
@@ -958,6 +973,10 @@ if "last_card" not in st.session_state:
     st.session_state.last_card = ""
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+if "bookmarks" not in st.session_state:
+    st.session_state.bookmarks = []
+if "restored_hint" not in st.session_state:
+    st.session_state.restored_hint = False
 
 # ===== 侧边栏：Access Secret 配置与API测试 =====
 # 部署环境（Streamlit secrets / 环境变量）已预置密钥时，评委可直接使用，无需输入
@@ -1078,6 +1097,16 @@ with st.sidebar:
             st.session_state.last_report = ""
             st.rerun()
 
+    # 收藏夹
+    if st.session_state.get("bookmarks"):
+        st.markdown("---")
+        st.subheader("⭐ 收藏夹")
+        for i, bm in enumerate(st.session_state["bookmarks"]):
+            st.caption(f"⭐ {bm['title'][:25]} · 赞同{bm.get('voteup', 0)}")
+            if st.button("❌", key=f"del_bm_{i}", help="取消收藏"):
+                st.session_state.bookmarks.pop(i)
+                st.rerun()
+
 st.markdown("---")
 
 # ============================================================
@@ -1132,7 +1161,7 @@ if st.session_state.search_results:
     st.markdown("### 检索结果（勾选文章后点击萃取）")
     selected_indices = []
     for i, item in enumerate(st.session_state.search_results):
-        col_chk, col_show = st.columns([1, 10])
+        col_chk, col_show, col_bm = st.columns([1, 9, 0.8])
         with col_chk:
             if st.checkbox("", key=f"chk_{i}"):
                 selected_indices.append(i)
@@ -1150,6 +1179,22 @@ if st.session_state.search_results:
             if item.get("excerpt"):
                 st.caption(item["excerpt"][:200] + "...")
             st.markdown(f"[🔗 查看原文]({item.get('url', '')})")
+        with col_bm:
+            bm_ids = [b.get("id") for b in st.session_state.get("bookmarks", [])]
+            is_bookmarked = item.get("id") in bm_ids
+            star = "⭐" if is_bookmarked else "☆"
+            if st.button(star, key=f"bm_{i}", help="收藏/取消收藏"):
+                if is_bookmarked:
+                    st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b.get("id") != item.get("id")]
+                else:
+                    st.session_state.bookmarks.append({
+                        "id": item.get("id", ""),
+                        "title": item.get("title", ""),
+                        "url": item.get("url", ""),
+                        "author": item.get("author", ""),
+                        "voteup": item.get("voteup", 0),
+                    })
+                st.rerun()
 
     if selected_indices and st.button("🃏 萃取选中案例", type="primary"):
         if not access_secret:
@@ -1200,6 +1245,7 @@ if st.session_state.search_results:
 
                 if st.session_state.extracted_cases:
                     st.success(f"✅ 萃取完成，共 {len(st.session_state.extracted_cases)} 个案例")
+                    st.session_state.restored_hint = True
                     col_c, _, _ = st.columns([1, 3, 1])
                     col_c.image("assets/bell.png", width=72)
                     col_c.caption("应急警钟：案例已就绪，去分析吧！")
@@ -1214,6 +1260,9 @@ st.markdown("---")
 # ============================================================
 st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #10B981; margin: 1.4rem 0 0.1rem;">🃏 第二层 · 案例萃取</div>', unsafe_allow_html=True)
 st.caption("从原文提取四维信息，每条结论附原文证据片段，未提及标记⚠️")
+
+if st.session_state.restored_hint and st.session_state.extracted_cases:
+    st.info(f"📌 本会话已保留 {len(st.session_state.extracted_cases)} 个萃取结果，可直接进入下方分析层")
 
 if not st.session_state.extracted_cases:
     st.info("暂无萃取结果，请先在第一层检索并萃取案例")
