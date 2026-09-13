@@ -5,6 +5,7 @@ import json
 import streamlit as st
 import requests
 import pandas as pd
+import concurrent.futures
 
 # ============================================================
 # 灾害应急案例AI萃取助手 - 完整四层流程
@@ -384,6 +385,7 @@ def call_zhihu_agent(messages, access_secret, model=MODEL_FAST):
     官方端点: POST https://developer.zhihu.com/v1/chat/completions
     支持字段: model / messages / stream（其他字段不保证生效）
     额度: 默认每租户每自然日 100 次（以 /api/v1/quota 实际查询为准）
+    超时自动重试 1 次；额度耗尽返回友好提示。
 
     入参:
         messages (list): OpenAI格式消息列表
@@ -401,19 +403,30 @@ def call_zhihu_agent(messages, access_secret, model=MODEL_FAST):
         "messages": messages,
         "stream": False,
     }
-    try:
-        resp = requests.post(url, headers=build_headers(access_secret),
-                             json=payload, timeout=60)
-        data = resp.json()
-        if data.get("Code") == 0 or "choices" in data:
-            return data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        else:
-            code = data.get("Code")
-            record_error(f"直答接口错误 Code {code}: {ERROR_MAP.get(code, data.get('Message', '未知'))}")
+    for attempt in range(2):
+        try:
+            resp = requests.post(url, headers=build_headers(access_secret),
+                                 json=payload, timeout=60)
+            data = resp.json()
+            if data.get("Code") == 0 or "choices" in data:
+                return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            else:
+                code = data.get("Code")
+                if code == 30001:
+                    record_error("今日直答额度已用完，请在侧边栏查看额度，明日重置")
+                else:
+                    record_error(f"直答接口错误 Code {code}: {ERROR_MAP.get(code, data.get('Message', '未知'))}")
+                return ""
+        except requests.exceptions.Timeout:
+            if attempt == 0:
+                time.sleep(1)
+                continue
+            record_error("直答调用超时（已重试1次），请稍后重试")
             return ""
-    except Exception as e:
-        record_error(f"直答调用异常: {e}")
-        return ""
+        except Exception as e:
+            record_error(f"直答调用异常: {e}")
+            return ""
+    return ""
 
 
 def extract_case_info(original_text, access_secret, model=MODEL_FAST, title="", author="", comments=None):
@@ -571,18 +584,22 @@ def extract_timeline(case, access_secret, model=MODEL_FAST):
 
 def compare_cases_table(extracted_cases):
     """
-    多案例横向对比：构建对比表格 DataFrame。
+    多案例横向对比：构建对比表格 DataFrame，含结构化维度。
     """
     rows = []
     for case in extracted_cases:
         title = case.get("title", "未知案例")
         extract = case.get("extract", {})
-        row = {"案例名称": title}
+        comp = extract.get("completeness", {})
+        row = {"案例名称": title[:20]}
+        row["完整度"] = comp.get("percent", "—")
+        row["有依据"] = comp.get("has_evidence", 0)
+        row["未提及"] = comp.get("missing", 0)
         for dim_name, _ in DIMENSIONS:
             content = extract.get(dim_name, {}).get("内容", "")
-            row[dim_name] = content if content else "—"
+            row[dim_name] = content[:60] if content else "—"
         rows.append(row)
-    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["案例名称"] + [d[0] for d in DIMENSIONS])
+    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["案例名称", "完整度", "有依据", "未提及"] + [d[0] for d in DIMENSIONS])
 
 
 def summarize_commonality(extracted_cases, access_secret, model=MODEL_FAST):
@@ -711,9 +728,10 @@ def generate_review_report(extracted_cases, commonality_summary, access_secret, 
     return call_zhihu_agent(messages, access_secret, model=model)
 
 
-def ask_followup(question, extracted_cases, access_secret, model=MODEL_FAST):
+def ask_followup(question, extracted_cases, access_secret, model=MODEL_FAST, history=None):
     """
     追问：用户针对案例提问，LLM基于原文证据回答。
+    支持多轮对话：将历史问答作为上下文传入，保持连续性。
     严格基于原文，不编造。
     """
     if not question or not extracted_cases:
@@ -744,8 +762,12 @@ def ask_followup(question, extracted_cases, access_secret, model=MODEL_FAST):
 
     messages = [
         {"role": "system", "content": "你是应急案例问答助手，严格基于材料，不编造。"},
-        {"role": "user", "content": prompt},
     ]
+    if history:
+        for h in history[-4:]:
+            messages.append({"role": "user", "content": h["question"]})
+            messages.append({"role": "assistant", "content": h["answer"]})
+    messages.append({"role": "user", "content": prompt})
     return call_zhihu_agent(messages, access_secret, model=model)
 
 
@@ -932,6 +954,10 @@ if "last_commonality" not in st.session_state:
     st.session_state.last_commonality = ""
 if "last_report" not in st.session_state:
     st.session_state.last_report = ""
+if "last_card" not in st.session_state:
+    st.session_state.last_card = ""
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
 # ===== 侧边栏：Access Secret 配置与API测试 =====
 # 部署环境（Streamlit secrets / 环境变量）已预置密钥时，评委可直接使用，无需输入
@@ -1130,37 +1156,53 @@ if st.session_state.search_results:
             st.warning("请先填写 Access Secret")
         else:
             st.session_state.extracted_cases = []
-            progress = st.progress(0)
-            for idx, i in enumerate(selected_indices):
+            items_to_extract = []
+            for i in selected_indices:
                 item = st.session_state.search_results[i]
-                with st.spinner(f"萃取: {item.get('title', '')[:30]}..."):
-                    # 官方搜索返回的 ContentText 即原文素材（含较完整内容文本），直接作为萃取输入
-                    original_text = item.get("excerpt", "")
-                    if not original_text:
-                        st.warning(f"「{item.get('title', '')}」无内容摘要，已跳过")
-                        continue
-                    import hashlib
-                    text_hash = hashlib.md5(original_text.encode()).hexdigest()
-                    extract = cached_extract(
-                        text_hash, original_text, access_secret, model_choice,
+                original_text = item.get("excerpt", "")
+                if not original_text:
+                    st.warning(f"「{item.get('title', '')}」无内容摘要，已跳过")
+                    continue
+                items_to_extract.append((item, original_text))
+
+            if items_to_extract:
+                progress = st.progress(0)
+                status_text = st.empty()
+                done_count = 0
+
+                def do_extract(item, text):
+                    text_hash = hashlib.md5(text.encode()).hexdigest()
+                    return item, text, cached_extract(
+                        text_hash, text, access_secret, model_choice,
                         title=item.get("title", ""),
                         author=item.get("author", ""),
                         comments=item.get("comments", []),
                     )
-                    if extract:
-                        st.session_state.extracted_cases.append({
-                            "title": item.get("title", ""),
-                            "url": item.get("url", ""),
-                            "id": item.get("id", ""),
-                            "original_text": original_text,
-                            "extract": extract,
-                        })
-                progress.progress((idx + 1) / len(selected_indices))
-            if st.session_state.extracted_cases:
-                st.success(f"✅ 萃取完成，共 {len(st.session_state.extracted_cases)} 个案例")
-                col_c, _, _ = st.columns([1, 3, 1])
-                col_c.image("assets/bell.png", width=72)
-                col_c.caption("应急警钟：案例已就绪，去分析吧！")
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                    futures = {
+                        executor.submit(do_extract, item, text): idx
+                        for idx, (item, text) in enumerate(items_to_extract)
+                    }
+                    for future in concurrent.futures.as_completed(futures):
+                        item, original_text, extract = future.result()
+                        if extract:
+                            st.session_state.extracted_cases.append({
+                                "title": item.get("title", ""),
+                                "url": item.get("url", ""),
+                                "id": item.get("id", ""),
+                                "original_text": original_text,
+                                "extract": extract,
+                            })
+                        done_count += 1
+                        progress.progress(done_count / len(items_to_extract))
+                        status_text.info(f"已完成 {done_count}/{len(items_to_extract)}：{item.get('title', '')[:30]}")
+
+                if st.session_state.extracted_cases:
+                    st.success(f"✅ 萃取完成，共 {len(st.session_state.extracted_cases)} 个案例")
+                    col_c, _, _ = st.columns([1, 3, 1])
+                    col_c.image("assets/bell.png", width=72)
+                    col_c.caption("应急警钟：案例已就绪，去分析吧！")
             else:
                 err = st.session_state.get("last_error", "")
                 st.error(f"萃取失败，请检查 Access Secret 与接口连通性。{('原因: ' + err) if err else ''}")
@@ -1318,6 +1360,10 @@ else:
             with st.spinner("生成中..."):
                 card = generate_knowledge_card(st.session_state.extracted_cases, access_secret, model_choice)
             if card:
+                st.session_state["last_card"] = card
+                st.markdown(f"""<div style="background:linear-gradient(135deg, #F0F4FF, #FAF5FF); border:1px solid #C7D2FE; border-radius:12px; padding:18px 20px; margin:8px 0;">
+                <div style="font-weight:800; color:#4338CA; font-size:1.1rem; margin-bottom:10px;">📇 应急案例知识卡片</div>
+                </div>""", unsafe_allow_html=True)
                 st.markdown(card)
             else:
                 err = st.session_state.get("last_error", "")
@@ -1331,6 +1377,9 @@ else:
             if report:
                 st.session_state["last_report"] = report
                 st.session_state["last_commonality"] = summary
+                st.markdown(f"""<div style="background:linear-gradient(135deg, #ECFDF5, #F0FDF4); border:1px solid #A7F3D0; border-radius:12px; padding:18px 20px; margin:8px 0;">
+                <div style="font-weight:800; color:#065F46; font-size:1.1rem; margin-bottom:10px;">📝 灾害应急复盘报告</div>
+                </div>""", unsafe_allow_html=True)
                 st.markdown(report)
             else:
                 err = st.session_state.get("last_error", "")
@@ -1354,15 +1403,34 @@ else:
         )
         st.caption("含全部萃取案例、共性分析、复盘报告，可用于离线复盘与分享")
 
-    # 追问
+    # 追问（多轮对话）
     st.markdown("---")
-    st.subheader("💬 追问深入")
+    st.subheader("💬 追问深入（多轮对话）")
+    st.caption("支持连续追问，AI 会结合上下文回答。最多保留最近 4 轮对话。")
+
+    # 显示历史对话
+    if st.session_state.get("chat_history"):
+        for h in st.session_state["chat_history"]:
+            st.markdown(f"""<div style="background:#F1F5F9; border-radius:10px; padding:10px 14px; margin:6px 0;">
+            <span style="color:#64748B; font-size:0.8rem;">🙋 问</span>
+            <div style="color:#0F172A; margin-top:2px;">{h['question']}</div>
+            </div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="background:#EFF6FF; border-left:3px solid #0066FF; border-radius:10px; padding:10px 14px; margin:6px 0;">
+            <span style="color:#0066FF; font-size:0.8rem;">🤖 答</span>
+            <div style="color:#334155; margin-top:2px;">{h['answer'][:500]}{'...' if len(h['answer']) > 500 else ''}</div>
+            </div>""", unsafe_allow_html=True)
+
     ask_cols = st.columns([4, 1])
     with ask_cols[0]:
         ask_input = st.text_input("针对案例或复盘报告追问", key="ask_input", placeholder="例如：这次救援中物资调度为何滞后？")
     with ask_cols[1]:
         st.write("")
         ask_btn = st.button("追问", type="primary", use_container_width=True)
+
+    if st.session_state.get("chat_history"):
+        if st.button("🗑️ 清空对话", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
 
     if ask_btn:
         if not ask_input:
@@ -1371,9 +1439,13 @@ else:
             st.warning("请先填写 Access Secret")
         else:
             with st.spinner("正在追问..."):
-                answer = ask_followup(ask_input, st.session_state.extracted_cases, access_secret, model_choice)
+                answer = ask_followup(
+                    ask_input, st.session_state.extracted_cases, access_secret, model_choice,
+                    history=st.session_state.get("chat_history", []),
+                )
             if answer:
-                st.markdown(answer)
+                st.session_state.chat_history.append({"question": ask_input, "answer": answer})
+                st.rerun()
             else:
                 err = st.session_state.get("last_error", "")
                 st.error(f"追问失败. {err}")
