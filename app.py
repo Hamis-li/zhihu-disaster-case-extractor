@@ -170,7 +170,7 @@ def exchange_oauth_token(app_id, app_key, redirect_uri, code):
     """
     用 authorization_code 换取 OAuth access_token。
     官方端点: POST https://openapi.zhihu.com/access_token (x-www-form-urlencoded)
-    成功返回 access_token 字符串；失败返回空串。
+    返回 (access_token, error_msg)：成功时 error_msg 为空串；失败时 token 为空串并带服务端原文错误。
     """
     try:
         resp = requests.post(
@@ -186,44 +186,66 @@ def exchange_oauth_token(app_id, app_key, redirect_uri, code):
             timeout=15,
         )
         data = resp.json()
-        return data.get("access_token", "")
+        token = data.get("access_token") or (data.get("data") or {}).get("access_token") if isinstance(data.get("data"), dict) else data.get("access_token")
+        if token:
+            return token, ""
+        # 透传服务端真实错误（如 code=20001 "Access denied: not exists"），便于定位
+        biz_msg = data.get("data") if isinstance(data.get("data"), str) else data.get("message") or data.get("Message")
+        err = f"服务端返回 code={data.get('code')}：{biz_msg or '未返回 access_token'}"
+        record_error(f"OAuth 换取 token 失败: {err}")
+        return "", err
     except Exception as e:
-        record_error(f"OAuth 换取 token 失败: {e}")
-        return ""
+        record_error(f"OAuth 换取 token 异常: {e}")
+        return "", f"请求异常：{e}"
+
+
+def _parse_oauth_user(data):
+    """从 /user 响应中提取用户对象（兼容 data/Data/顶层三种包裹，成功判据看 fullname/uid/name）。"""
+    if not isinstance(data, dict):
+        return None
+    source = data.get("data") or data.get("Data") or data.get("user") or data
+    if isinstance(source, dict) and (source.get("fullname") or source.get("Fullname") or source.get("uid") or source.get("name")):
+        return source
+    return None
 
 
 def fetch_oauth_user(access_token, access_secret):
     """
-    获取授权用户基础信息（按官方可运行模板 oauth.mjs 核验 2026-09-13）。
-    官方端点: GET https://openapi.zhihu.com/user
-    鉴权头（三头缺一不可，按官方模板实现）：
-      Authorization: Bearer <Access Secret>      # 开放平台调用方凭证
-      X-OAuth-Token: <OAuth access_token>        # 授权用户 OAuth 令牌
-      X-Request-Timestamp: <Unix 秒级时间戳>
-    成功返回用户 dict（含 fullname/avatar_path 等）；失败返回 None。
+    获取授权用户基础信息 GET https://openapi.zhihu.com/user。
+    官方两份材料鉴权写法不一致，这里两种都试，任一成功即可：
+      方式A（官方可运行模板 oauth.mjs，三头）：
+        Authorization: Bearer <Access Secret> + X-OAuth-Token: <OAuth token> + X-Request-Timestamp
+      方式B（oauth.md 协议文档，单头）：
+        Authorization: Bearer <OAuth access_token>
+    成功返回用户 dict；失败返回 None。
     """
     if not access_token:
         return None
-    try:
-        resp = requests.get(
-            ZHIHU_OAUTH_USER,
-            headers={
-                "Authorization": f"Bearer {access_secret}",
-                "X-OAuth-Token": access_token,
-                "X-Request-Timestamp": str(int(time.time())),
-                "Content-Type": "application/json",
-            },
-            timeout=15,
-        )
-        data = resp.json()
-        # 成功判据：存在有效用户标识（fullname / uid），不能只看 HTTP 200
-        source = data.get("data") or data.get("Data") or data
-        if source and isinstance(source, dict) and (source.get("fullname") or source.get("uid")):
-            return source
-        return None
-    except Exception as e:
-        record_error(f"OAuth 获取用户信息失败: {e}")
-        return None
+    ts = str(int(time.time()))
+    attempts = []
+    if access_secret:
+        attempts.append({
+            "Authorization": f"Bearer {access_secret}",
+            "X-OAuth-Token": access_token,
+            "X-Request-Timestamp": ts,
+            "Content-Type": "application/json",
+        })
+    attempts.append({
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    })
+    last_err = ""
+    for headers in attempts:
+        try:
+            resp = requests.get(ZHIHU_OAUTH_USER, headers=headers, timeout=15)
+            user = _parse_oauth_user(resp.json())
+            if user:
+                return user
+            last_err = f"HTTP {resp.status_code}: {resp.text[:200]}"
+        except Exception as e:
+            last_err = str(e)
+    record_error(f"OAuth 获取用户信息失败: {last_err}")
+    return None
 
 
 def handle_oauth_callback():
@@ -267,16 +289,21 @@ def handle_oauth_callback():
         return
 
     with st.spinner("正在完成知乎登录..."):
-        access_token = exchange_oauth_token(app_id, app_key, redirect_uri, code)
+        access_secret = env_secret()
+        access_token, token_err = exchange_oauth_token(app_id, app_key, redirect_uri, code)
         if access_token:
-            user = fetch_oauth_user(access_token)
+            user = fetch_oauth_user(access_token, access_secret)
             if user:
+                user["_oauth_token"] = access_token
                 st.session_state["oauth_user"] = user
                 st.session_state.pop("oauth_error", None)
             else:
-                st.session_state["oauth_error"] = "登录失败：无法获取用户信息"
+                # token 已换到（授权有效），仅用户信息拉取失败：仍建立登录态，昵称降级显示
+                st.session_state["oauth_user"] = {"fullname": "知乎用户", "_oauth_token": access_token, "_profile_pending": True}
+                st.session_state["oauth_error"] = "已登录，但用户资料拉取失败（不影响登录状态）"
         else:
-            st.session_state["oauth_error"] = "登录失败：换取令牌失败"
+            # 透传真实原因，便于区分：凭证无效 / code 过期 / 回调地址不匹配
+            st.session_state["oauth_error"] = f"登录失败（换取令牌被拒）：{token_err}"
 
     st.session_state.pop("oauth_state", None)
     _clear_oauth_params(qp)
