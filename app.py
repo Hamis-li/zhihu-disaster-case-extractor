@@ -1113,13 +1113,14 @@ st.markdown("---")
 # 登录状态变量（用于分层门控）
 _is_logged_in = bool(st.session_state.get("oauth_user"))
 
-# 未登录时在主区域顶部显示登录引导横幅
+# 未登录时显示登录引导页面，不展示任何功能
 if not _is_logged_in:
-    st.markdown("""<div style="background: linear-gradient(135deg, #F0F4FF, #FAF5FF); border: 2px solid #0066FF; border-radius: 12px; padding: 16px 22px; margin: 10px 0 16px;">
-    <div style="font-weight: 800; color: #0066FF; font-size: 1.05rem;">🔓 登录知乎账号，解锁完整功能</div>
-    <div style="color: #334155; font-size: 0.88rem; margin-top: 4px;">未登录可体验检索和萃取（限 1 篇），登录后解锁：多案例并发萃取 · 时间线 · 对比分析 · 复盘报告 · 导出 · 追问</div>
-    <div style="color: #64748B; font-size: 0.8rem; margin-top: 2px;">👉 在左侧栏点击「🔑 登录知乎账号」即可授权</div>
+    st.markdown("""<div style="background: linear-gradient(135deg, #F0F4FF, #FAF5FF); border: 2px solid #0066FF; border-radius: 14px; padding: 28px 30px; margin: 10px 0 20px;">
+    <div style="font-weight: 800; color: #0066FF; font-size: 1.3rem;">🔒 登录知乎账号后开启使用</div>
+    <div style="color: #334155; font-size: 0.92rem; margin-top: 8px; line-height: 1.8;">知危鉴提供完整的四层应急案例萃取链路：<br>🔍 智能检索 → 🃏 案例萃取 → 📊 案例分析 → 🧠 AI综合复盘<br>登录后即可使用全部功能，包括多案例并发萃取、时间线、横向对比、复盘报告导出、多轮追问。</div>
+    <div style="color: #64748B; font-size: 0.85rem; margin-top: 10px;">👉 请在左侧栏点击「🔑 登录知乎账号」完成授权</div>
     </div>""", unsafe_allow_html=True)
+    st.stop()
 
 # ============================================================
 # 第一层：智能检索区
@@ -1211,13 +1212,10 @@ if st.session_state.search_results:
     if selected_indices and st.button("🃏 萃取选中案例", type="primary"):
         if not access_secret:
             st.warning("请先填写 Access Secret")
-        elif not _is_logged_in and len(selected_indices) > 1:
-            st.warning("🔒 未登录用户每次最多萃取 1 篇文章，请在左侧栏登录知乎账号解锁多案例并发萃取")
         else:
             st.session_state.extracted_cases = []
             items_to_extract = []
-            indices_to_use = selected_indices[:1] if not _is_logged_in else selected_indices
-            for i in indices_to_use:
+            for i in selected_indices:
                 item = st.session_state.search_results[i]
                 original_text = item.get("excerpt", "")
                 if not original_text:
@@ -1325,12 +1323,7 @@ else:
 st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #EF4444; margin: 1.4rem 0 0.1rem;">📊 第三层 · 案例分析</div>', unsafe_allow_html=True)
 st.caption("风险高亮、多案例横向对比、共性汇总")
 
-if not _is_logged_in:
-    st.markdown("""<div style="background: #FEF3C7; border: 2px dashed #F59E0B; border-radius: 10px; padding: 16px 20px; margin: 8px 0;">
-    <div style="font-weight: 700; color: #92400E; font-size: 1rem;">🔒 第三层功能需要登录知乎账号</div>
-    <div style="color: #78350F; font-size: 0.85rem; margin-top: 4px;">时间线 · 横向对比 · 完整度图表 · 共性分析 — 请在左侧栏登录后解锁</div>
-    </div>""", unsafe_allow_html=True)
-elif not st.session_state.extracted_cases:
+if not st.session_state.extracted_cases:
     st.info("暂无案例可分析，请先萃取")
 else:
     # 风险高亮
@@ -1419,12 +1412,7 @@ st.markdown("---")
 st.markdown('<div style="font-family: \'Helvetica Neue\', \'Microsoft YaHei\', sans-serif; font-size: 1.45rem; font-weight: 800; color: #8B5CF6; margin: 1.4rem 0 0.1rem;">🧠 第四层 · AI综合复盘</div>', unsafe_allow_html=True)
 st.caption("知识卡片、复盘报告、追问深入")
 
-if not _is_logged_in:
-    st.markdown("""<div style="background: #FEF3C7; border: 2px dashed #F59E0B; border-radius: 10px; padding: 16px 20px; margin: 8px 0;">
-    <div style="font-weight: 700; color: #92400E; font-size: 1rem;">🔒 第四层功能需要登录知乎账号</div>
-    <div style="color: #78350F; font-size: 0.85rem; margin-top: 4px;">知识卡片 · 复盘报告 · 导出报告 · 多轮追问 — 请在左侧栏登录后解锁</div>
-    </div>""", unsafe_allow_html=True)
-elif not st.session_state.extracted_cases:
+if not st.session_state.extracted_cases:
     st.info("暂无案例可复盘，请先萃取")
 else:
     preview_cols = st.columns(2)
