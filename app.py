@@ -1009,7 +1009,7 @@ with st.sidebar:
             state = _secrets.token_urlsafe(16)
             st.session_state.oauth_state = state
             auth_url = build_oauth_auth_url(oauth_app_id, oauth_redirect, state)
-            st.markdown(f'<a href="{auth_url}" target="_self" style="display:inline-block;margin-top:6px;">👉 点此跳转知乎授权页</a>', unsafe_allow_html=True)
+            st.link_button("👉 点此跳转知乎授权页", auth_url)
     else:
         # 未配置 OAuth
         st.caption("⚙️ 尚未配置知乎登录（需在部署 Secrets 配置 App ID / App Key）")
