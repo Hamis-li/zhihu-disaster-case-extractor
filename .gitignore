@@ -1,23 +1,51 @@
-# 密钥与凭证 - 严禁提交
+# ===== 密钥与凭证 - 严禁提交 =====
 .streamlit/secrets.toml
 secrets.toml
 *.secret
 .env
 
-# Python
+# ===== Python =====
 __pycache__/
 *.py[cod]
 .venv/
 venv/
 
-# 本地备份与临时文件
-*_backup_*.py
-zhihu-cli-skill.zip
+# ===== 临时 / 开发过程文件（不入库） =====
+# Skill 提取临时目录
+_zhihu_cli_skill_extract/
+_zhihu_hackathon_skill_extract/
 zhihu-cli-skill/
 
-# 赛事资料与压缩包（不入库）
+# 交付契约（内部用）
+artifact-delivery-contract.json
+
+# 大文件视频（已有 B 站公开链接，不放仓库）
+*.mp4
+
+# 备份文件
+*_备份.*
+*_backup_*
+
+# 旧版计划书（已由知危鉴_项目计划书.pdf 替代）
+灾害应急案例AI萃取助手 项目计划书.docx
+灾害应急案例AI萃取助手 项目计划书.pdf
+
+# 内部检查与交接文档
+计划书检查.md
+项目交接说明_Trae.md
+
+# 根目录主题配置备份（.streamlit/config.toml 为准）
+config.toml
+
+# 赛事资料与压缩包
 *.zip
-*.png
-!assets/bell.png
 知乎黑客松校园季-技术指南.md
 占位文案.docx
+
+# ===== 图片（保留 assets/ 下的品牌资产） =====
+*.png
+!assets/bell.png
+!assets/brand/project_icon.png
+
+# ===== docx 源文件（PDF 已归档，docx 不入库） =====
+知危鉴_项目计划书.docx

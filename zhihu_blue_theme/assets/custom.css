@@ -1,0 +1,437 @@
+/* ============================================================
+   灾害应急案例AI萃取助手 - 专业蓝·知乎系配色方案
+   ============================================================ */
+
+/* ---------- 全局变量 ---------- */
+:root {
+  /* 主色系 - 知乎蓝 */
+  --zhihu-primary: #0066FF;
+  --zhihu-primary-hover: #0052CC;
+  --zhihu-primary-active: #0044AA;
+  --zhihu-primary-light: #E6F0FF;
+  --zhihu-primary-lighter: #F0F6FF;
+
+  /* 背景色 */
+  --bg-main: #F8FAFC;
+  --bg-sidebar: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-muted: #F1F5F9;
+  --bg-hover: #E2E8F0;
+
+  /* 文字色 */
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-tertiary: #64748B;
+  --text-muted: #94A3B8;
+
+  /* 边框 / 分割线 */
+  --border-color: #E2E8F0;
+  --border-light: #F1F5F9;
+
+  /* 功能色 */
+  --success: #10B981;
+  --success-light: #D1FAE5;
+  --warning: #F59E0B;
+  --warning-light: #FEF3C7;
+  --danger: #EF4444;
+  --danger-light: #FEE2E2;
+  --info: #0EA5E9;
+  --info-light: #E0F2FE;
+
+  /* 知识卡片 - 四维配色 */
+  --card-overview: #0066FF;
+  --card-risk: #EF4444;
+  --card-measure: #10B981;
+  --card-lesson: #8B5CF6;
+}
+
+/* ---------- 隐藏 Streamlit 默认元素 ---------- */
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+header { visibility: hidden; }
+
+/* ---------- 主内容区 ---------- */
+.stApp {
+  background: var(--bg-main);
+}
+
+.block-container {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+  max-width: 100rem;
+}
+
+/* ---------- 侧边栏 ---------- */
+section[data-testid="stSidebar"] {
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+}
+
+section[data-testid="stSidebar"] .st-emotion-cache-16txtl3 {
+  padding-top: 2rem;
+}
+
+/* ---------- 标题样式 ---------- */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: 2rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+h2 {
+  font-size: 1.5rem !important;
+  margin-top: 2rem !important;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--zhihu-primary);
+  display: inline-block;
+}
+
+h3 {
+  font-size: 1.2rem !important;
+  margin-top: 1.5rem !important;
+}
+
+/* ---------- 按钮样式 ---------- */
+.stButton > button {
+  background: var(--zhihu-primary) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 0.5rem 1.5rem !important;
+  font-weight: 500 !important;
+  font-size: 0.95rem !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 3px rgba(0, 102, 255, 0.2) !important;
+}
+
+.stButton > button:hover {
+  background: var(--zhihu-primary-hover) !important;
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+.stButton > button:active {
+  background: var(--zhihu-primary-active) !important;
+  transform: translateY(0) !important;
+}
+
+/* 次要按钮（快捷标签按钮） */
+button[kind="secondary"] {
+  background: var(--bg-muted) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+button[kind="secondary"]:hover {
+  background: var(--zhihu-primary-light) !important;
+  color: var(--zhihu-primary) !important;
+  border-color: var(--zhihu-primary) !important;
+}
+
+/* ---------- 输入框样式 ---------- */
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea {
+  background: white !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  padding: 0.6rem 0.8rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus {
+  border-color: var(--zhihu-primary) !important;
+  box-shadow: 0 0 0 3px var(--zhihu-primary-light) !important;
+}
+
+.stTextInput > div > div > input::placeholder,
+.stTextArea > div > div > textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* ---------- 下拉选择框 ---------- */
+.stSelectbox > div > div > select {
+  background: white !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+}
+
+.stSelectbox > div > div > select:focus {
+  border-color: var(--zhihu-primary) !important;
+  box-shadow: 0 0 0 3px var(--zhihu-primary-light) !important;
+}
+
+/* ---------- 信息框 / 警告框 ---------- */
+.stAlert {
+  border-radius: 8px !important;
+  border: none !important;
+  padding: 0.75rem 1rem !important;
+}
+
+.stAlert[data-testid="stAlert-info"] {
+  background: var(--info-light) !important;
+  color: #0369A1 !important;
+}
+
+.stAlert[data-testid="stAlert-success"] {
+  background: var(--success-light) !important;
+  color: #065F46 !important;
+}
+
+.stAlert[data-testid="stAlert-warning"] {
+  background: var(--warning-light) !important;
+  color: #92400E !important;
+}
+
+.stAlert[data-testid="stAlert-error"] {
+  background: var(--danger-light) !important;
+  color: #991B1B !important;
+}
+
+/* ---------- 分割线 ---------- */
+hr {
+  border: none !important;
+  border-top: 1px solid var(--border-color) !important;
+  margin: 1.5rem 0 !important;
+}
+
+/* ---------- 知识卡片容器 ---------- */
+.case-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease;
+}
+
+.case-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.case-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.case-card-title .badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+}
+
+.badge-overview { background: var(--card-overview); }
+.badge-risk { background: var(--card-risk); }
+.badge-measure { background: var(--card-measure); }
+.badge-lesson { background: var(--card-lesson); }
+
+.case-card-content {
+  color: var(--text-secondary);
+  line-height: 1.7;
+  font-size: 0.95rem;
+}
+
+.case-card-source {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border-light);
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.case-card-source a {
+  color: var(--zhihu-primary);
+  text-decoration: none;
+}
+
+.case-card-source a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- 分层标题区 ---------- */
+.layer-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 2rem 0 1rem 0;
+}
+
+.layer-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--zhihu-primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.layer-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.layer-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin-top: 0.25rem;
+}
+
+.layer-divider {
+  height: 3px;
+  background: linear-gradient(to right, var(--zhihu-primary), transparent);
+  border-radius: 2px;
+  margin-bottom: 1.5rem;
+}
+
+/* ---------- 快捷检索标签 ---------- */
+.quick-tag {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  margin: 0.25rem 0.5rem 0.25rem 0;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-tag:hover {
+  background: var(--zhihu-primary-light);
+  border-color: var(--zhihu-primary);
+  color: var(--zhihu-primary);
+}
+
+/* ---------- 状态指示器 ---------- */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.status-badge.success {
+  background: var(--success-light);
+  color: #065F46;
+}
+
+.status-badge.warning {
+  background: var(--warning-light);
+  color: #92400E;
+}
+
+.status-badge.info {
+  background: var(--info-light);
+  color: #0369A1;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ---------- 顶部品牌区 ---------- */
+.app-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.app-header h1 {
+  margin-bottom: 0.5rem !important;
+}
+
+.app-header .subtitle {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+.app-header .subtitle .dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  margin: 0 0.6rem;
+  vertical-align: middle;
+}
+
+/* ---------- 数据指标卡 ---------- */
+.metric-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  text-align: center;
+}
+
+.metric-card .metric-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--zhihu-primary);
+  line-height: 1.2;
+}
+
+.metric-card .metric-label {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-top: 0.25rem;
+}
+
+/* ---------- 加载动画 ---------- */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--zhihu-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- 响应式适配 ---------- */
+@media (max-width: 768px) {
+  .block-container {
+    padding-top: 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  h1 { font-size: 1.5rem !important; }
+  h2 { font-size: 1.2rem !important; }
+
+  .case-card {
+    padding: 1rem;
+  }
+}

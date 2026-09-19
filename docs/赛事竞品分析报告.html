@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知乎黑客松 2026 · 全赛道竞品分析报告</title>
+<style>
+  :root {
+    --zhihu-blue: #0066FF;
+    --zhihu-blue-light: #E6F0FF;
+    --bg: #F8FAFC;
+    --card: #FFFFFF;
+    --text: #0F172A;
+    --text-sub: #334155;
+    --text-muted: #64748B;
+    --border: #E2E8F0;
+    --red: #EF4444;
+    --green: #10B981;
+    --purple: #8B5CF6;
+    --orange: #F59E0B;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0;
+  }
+  .hero {
+    background: linear-gradient(135deg, #0066FF 0%, #0044CC 100%);
+    color: white;
+    padding: 60px 24px 48px;
+    text-align: center;
+  }
+  .hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  .hero p { font-size: 16px; opacity: 0.9; }
+  .hero .meta { font-size: 13px; opacity: 0.7; margin-top: 12px; }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
+
+  .section-title {
+    font-size: 22px; font-weight: 700; color: var(--text);
+    margin: 40px 0 20px; padding-left: 14px;
+    border-left: 4px solid var(--zhihu-blue);
+  }
+  .section-title small { font-size: 14px; color: var(--text-muted); font-weight: 400; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+  .stat-card .num { font-size: 28px; font-weight: 700; color: var(--zhihu-blue); }
+  .stat-card .label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .cat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    border-left: 4px solid var(--zhihu-blue);
+  }
+  .cat-card.red { border-left-color: var(--red); }
+  .cat-card.green { border-left-color: var(--green); }
+  .cat-card.purple { border-left-color: var(--purple); }
+  .cat-card.orange { border-left-color: var(--orange); }
+  .cat-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .cat-card .count { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+  .cat-card p { font-size: 14px; color: var(--text-sub); }
+  .cat-card .examples { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+    background: var(--card);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  th {
+    background: var(--zhihu-blue);
+    color: white;
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-sub);
+  }
+  tr:nth-child(even) td { background: #F8FAFC; }
+  tr:hover td { background: var(--zhihu-blue-light); }
+  .rank { font-weight: 700; color: var(--zhihu-blue); }
+  .rank-1 { color: #F59E0B; }
+  .heat { font-weight: 600; }
+  .usage { color: var(--green); font-weight: 600; }
+  .usage-zero { color: var(--text-muted); }
+
+  .insight-box {
+    background: var(--zhihu-blue-light);
+    border: 1px solid var(--zhihu-blue);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin: 20px 0;
+  }
+  .insight-box h3 {
+    color: var(--zhihu-blue);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .insight-box ul { padding-left: 18px; }
+  .insight-box li { font-size: 14px; color: var(--text-sub); margin-bottom: 6px; }
+
+  .our-position {
+    background: linear-gradient(135deg, #0066FF, #0044CC);
+    color: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+  .our-position h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+  .our-position table th { background: rgba(255,255,255,0.2); }
+  .our-position table { color: white; }
+  .our-position td { color: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.15); }
+  .our-position tr:nth-child(even) td { background: rgba(255,255,255,0.05); }
+
+  @media (max-width: 768px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .cat-grid { grid-template-columns: 1fr; }
+    table { font-size: 12px; }
+    th, td { padding: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>知乎黑客松 2026 · 全赛道竞品分析报告</h1>
+  <p>150 个参赛项目 · 8 大赛道方向 · 知危鉴定位分析</p>
+  <div class="meta">数据采集时间：2026-09-14 · 赛事页面 8 页全部扫描</div>
+</div>
+
+<div class="container">
+
+  <div class="section-title">一、赛事总览 <small>150 个项目 · 8 页</small></div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="num">150</div>
+      <div class="label">参赛项目总数</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">12</div>
+      <div class="label">热度 100+ 项目</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">60+</div>
+      <div class="label">使用人数为 0</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">248</div>
+      <div class="label">最高热度（meetmind）</div>
+    </div>
+  </div>
+
+  <div class="section-title">二、项目方向分类 <small>按功能归类</small></div>
+
+  <div class="cat-grid">
+    <div class="cat-card">
+      <h3>📚 知识整理与学习</h3>
+      <div class="count">约 35 个项目</div>
+      <p>把知乎内容结构化、萃取、生成知识卡片、学习路径</p>
+      <div class="examples">代表：meetmind · 知炼·知识炼金炉 · 知阶 · Word Atlas · 知危鉴 · 知识编译器 · 知途·看山行</div>
+    </div>
+    <div class="cat-card red">
+      <h3>🎮 游戏化互动</h3>
+      <div class="count">约 30 个项目</div>
+      <p>把知乎内容做成游戏、模拟器、互动叙事</p>
+      <div class="examples">代表：旅行看山·答主之路 · 人生未定式 · 入局 · 洪荒叙事 · 看山探案录 · 知乎脑洞游乐园 · 二刷</div>
+    </div>
+    <div class="cat-card green">
+      <h3>🧠 思维工具与辅助决策</h3>
+      <div class="count">约 25 个项目</div>
+      <p>帮助用户思考、辩论、做决策、分析观点</p>
+      <div class="examples">代表：OnionMind · 观点擂台 · 争鸣·问题分歧地图 · 观点引力场 · 知乎立场沙盘 · 问山ThreadPeak</div>
+    </div>
+    <div class="cat-card purple">
+      <h3>💬 社交与个性化</h3>
+      <div class="count">约 20 个项目</div>
+      <p>数字分身、破冰、匹配、个人画像、创作分析</p>
+      <div class="examples">代表：社恐破冰船 · 知己雷达 · 回声漂流瓶 · 回声邮局 · 平行人生模拟器 · 知我境</div>
+    </div>
+    <div class="cat-card orange">
+      <h3>📖 内容创作与阅读</h3>
+      <div class="count">约 20 个项目</div>
+      <p>知乎内容转播客、转PPT、写作辅助、阅读增强</p>
+      <div class="examples">代表：听见-知乎内容播客化 · 看山·创作校准引擎 · 刊见单词 · 框知 · 知否 · 朝花夕拾</div>
+    </div>
+    <div class="cat-card">
+      <h3>🎓 职业与实用工具</h3>
+      <div class="count">约 20 个项目</div>
+      <p>求职、文献管理、复习系统、健康、饮食等垂直工具</p>
+      <div class="examples">代表：OffNav·马上有Offer · Agentero文献管理 · 恒牙间隔复习 · 智膳 · JobProof · BlueWhale</div>
+    </div>
+  </div>
+
+  <div class="section-title">三、Top 20 项目详情 <small>含核心功能描述</small></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>排名</th>
+        <th>项目名</th>
+        <th>团队</th>
+        <th>热度</th>
+        <th>使用</th>
+        <th>核心功能</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="rank rank-1">1</td>
+        <td><b>meetmind</b></td>
+        <td>meetmind</td>
+        <td class="heat">248</td>
+        <td class="usage">101</td>
+        <td>知乎收藏夹AI导读：登录后选收藏夹→AI口播+板书+画图讲解→出题考试→薄弱点回知乎补课</td>
+      </tr>
+      <tr>
+        <td class="rank">2</td>
+        <td>旅行看山：答主之路</td>
+        <td>Know\edge</td>
+        <td class="heat">224</td>
+        <td class="usage">77</td>
+        <td>把读知乎与写回答做成旅行冒险游戏，跨次元体验</td>
+      </tr>
+      <tr>
+        <td class="rank">3</td>
+        <td>人生未定式</td>
+        <td>码力无边</td>
+        <td class="heat">214</td>
+        <td class="usage">64</td>
+        <td>把知乎网友真实人生经验做成可交互的平行人生游戏</td>
+      </tr>
+      <tr>
+        <td class="rank">4</td>
+        <td>知阶KnowledgeSteps</td>
+        <td>你的脑子被我吃了</td>
+        <td class="heat">189</td>
+        <td class="usage">50</td>
+        <td>输入学习目标→生成知识图谱与前置知识树→路径化学习</td>
+      </tr>
+      <tr>
+        <td class="rank">5</td>
+        <td>社恐破冰船</td>
+        <td>盐之有理</td>
+        <td class="heat">164</td>
+        <td class="usage">16</td>
+        <td>通过数字分身帮用户生成能直接发出的评论，社交训练</td>
+      </tr>
+      <tr>
+        <td class="rank">6</td>
+        <td>OnionMind（洋葱）</td>
+        <td>看山别捣蛋</td>
+        <td class="heat">162</td>
+        <td class="usage">29</td>
+        <td>知乎收藏摘要整理为结构化记忆卡片，个人笔记AI分析</td>
+      </tr>
+      <tr>
+        <td class="rank">7</td>
+        <td>入局</td>
+        <td>亦曦</td>
+        <td class="heat">158</td>
+        <td class="usage">14</td>
+        <td>游戏叙事方向，跨次元游乐场体验</td>
+      </tr>
+      <tr>
+        <td class="rank">8</td>
+        <td>Word Atlas 词汇图谱</td>
+        <td>FA2Z</td>
+        <td class="heat">157</td>
+        <td class="usage">3</td>
+        <td>输入英文单词→生成四维词汇档案→给出原文入口</td>
+      </tr>
+      <tr>
+        <td class="rank">9</td>
+        <td>知炼·知识炼金炉</td>
+        <td>我也不知道怎么起名呀</td>
+        <td class="heat">154</td>
+        <td class="usage">6</td>
+        <td>知识整理方向，将知乎内容炼金为结构化知识</td>
+      </tr>
+      <tr>
+        <td class="rank">10</td>
+        <td>观点擂台 Arena of Cards</td>
+        <td>对对队</td>
+        <td class="heat">152</td>
+        <td class="usage">3</td>
+        <td>观点辩论方向，不同观点卡牌对战</td>
+      </tr>
+      <tr>
+        <td class="rank">11</td>
+        <td>洪荒叙事</td>
+        <td>幻影忍者</td>
+        <td class="heat">148</td>
+        <td class="usage-zero">0</td>
+        <td>游戏叙事方向</td>
+      </tr>
+      <tr>
+        <td class="rank">12</td>
+        <td><b>知危鉴·灾害应急案例AI萃取助手</b></td>
+        <td><b>应急有我</b></td>
+        <td class="heat">148</td>
+        <td class="usage-zero">0</td>
+        <td><b>灾害关键词→检索→四维萃取（附原文证据防幻觉）→时间线/对比/共性分析→复盘报告</b></td>
+      </tr>
+      <tr>
+        <td class="rank">13</td>
+        <td>视差PARALLAX</td>
+        <td>F8FQ</td>
+        <td class="heat">143</td>
+        <td class="usage">8</td>
+        <td>视觉化信息展示</td>
+      </tr>
+      <tr>
+        <td class="rank">14</td>
+        <td>知识编译器</td>
+        <td>知识编译器</td>
+        <td class="heat">140</td>
+        <td class="usage">6</td>
+        <td>知识结构化编译</td>
+      </tr>
+      <tr>
+        <td class="rank">15</td>
+        <td>带节奏</td>
+        <td>股市沉沉沉队</td>
+        <td class="heat">140</td>
+        <td class="usage">13</td>
+        <td>舆论/情绪分析方向</td>
+      </tr>
+      <tr>
+        <td class="rank">16</td>
+        <td>知己雷达·盐选故事·灵魂匹配局</td>
+        <td>Promising</td>
+        <td class="heat">139</td>
+        <td class="usage-zero">0</td>
+        <td>个性化匹配方向</td>
+      </tr>
+      <tr>
+        <td class="rank">17</td>
+        <td>思想银河</td>
+        <td>火锅瓦罐汤</td>
+        <td class="heat">137</td>
+        <td class="usage">5</td>
+        <td>思维可视化</td>
+      </tr>
+      <tr>
+        <td class="rank">18</td>
+        <td>知源图谱</td>
+        <td>宇宙护卫队</td>
+        <td class="heat">135</td>
+        <td class="usage-zero">0</td>
+        <td>知识图谱可视化</td>
+      </tr>
+      <tr>
+        <td class="rank">19</td>
+        <td>作数</td>
+        <td>海淀农场</td>
+        <td class="heat">134</td>
+        <td class="usage">9</td>
+        <td>数据/计算工具</td>
+      </tr>
+      <tr>
+        <td class="rank">20</td>
+        <td>casepilot</td>
+        <td>元初智源</td>
+        <td class="heat">133</td>
+        <td class="usage-zero">0</td>
+        <td>案例管理方向</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-title">四、关键洞察</div>
+
+  <div class="insight-box">
+    <h3>📊 数据规律</h3>
+    <ul>
+      <li><b>使用人数与排名高度正相关</b>：Top 4 的使用人数分别为 101/77/64/50，断层式领先</li>
+      <li><b>60% 项目使用人数为 0</b>：说明大多数项目没有让用户走完 OAuth 流程</li>
+      <li><b>热度不等于使用</b>：你的项目热度 148 排第 12，但使用为 0，说明浏览≠使用</li>
+      <li><b>游戏化项目使用人数更高</b>：Top 3 中 2 个是游戏化项目，用户更有动力登录体验</li>
+      <li><b>知识整理赛道最拥挤</b>：35+ 个项目做知识整理，竞争激烈，需要差异化</li>
+    </ul>
+  </div>
+
+  <div class="insight-box">
+    <h3>🏆 头部项目成功要素</h3>
+    <ul>
+      <li><b>meetmind（248热度/101使用）</b>：收藏夹即课表，不登录没法用，强制 OAuth 转化</li>
+      <li><b>旅行看山（224热度/77使用）</b>：游戏化+读知乎，强互动驱动登录</li>
+      <li><b>人生未定式（214热度/64使用）</b>：人生模拟，好奇心驱动体验</li>
+      <li><b>知阶（189热度/50使用）</b>：学习路径图谱，实用性强</li>
+    </ul>
+  </div>
+
+  <div class="section-title">五、知危鉴竞争定位分析</div>
+
+  <div class="our-position">
+    <h3>知危鉴 vs 同赛道竞品</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>维度</th>
+          <th>知危鉴</th>
+          <th>meetmind</th>
+          <th>知炼·知识炼金炉</th>
+          <th>OnionMind</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>定位</b></td>
+          <td>灾害应急知识萃取与复盘</td>
+          <td>收藏夹AI私教</td>
+          <td>知识结构化炼金</td>
+          <td>收藏笔记AI分析</td>
+        </tr>
+        <tr>
+          <td><b>输入</b></td>
+          <td>关键词搜索</td>
+          <td>用户收藏夹</td>
+          <td>知识输入</td>
+          <td>收藏摘要</td>
+        </tr>
+        <tr>
+          <td><b>输出</b></td>
+          <td>四维卡片+时间线+对比+报告</td>
+          <td>口播+板书+考试</td>
+          <td>结构化知识</td>
+          <td>记忆卡片+分析</td>
+        </tr>
+        <tr>
+          <td><b>防幻觉</b></td>
+          <td>✅ 核心卖点</td>
+          <td>未提及</td>
+          <td>未提及</td>
+          <td>未提及</td>
+        </tr>
+        <tr>
+          <td><b>领域聚焦</b></td>
+          <td>✅ 应急灾害垂直</td>
+          <td>❌ 通用</td>
+          <td>❌ 通用</td>
+          <td>❌ 通用</td>
+        </tr>
+        <tr>
+          <td><b>OAuth转化</b></td>
+          <td>❌ 不登录也能用</td>
+          <td>✅ 必须登录</td>
+          <td>❌ 不需要</td>
+          <td>✅ 需要登录</td>
+        </tr>
+        <tr>
+          <td><b>使用人数</b></td>
+          <td>0</td>
+          <td>101</td>
+          <td>6</td>
+          <td>29</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight-box">
+    <h3>🎯 知危鉴的差异化优势</h3>
+    <ul>
+      <li><b>唯一垂直领域</b>：150 个项目中唯一聚焦"灾害应急"赛道的，其他全是通用知识工具</li>
+      <li><b>唯一强调防幻觉</b>：唯一把"每条结论附原文证据"作为核心机制的项目，技术可信度最高</li>
+      <li><b>四层完整流水线</b>：检索→萃取→分析→复盘，功能完整度在知识赛道排前三</li>
+      <li><b>导出能力</b>：支持 Markdown 报告导出，可离线复盘，多数竞品没有</li>
+    </ul>
+  </div>
+
+  <div class="insight-box">
+    <h3>⚠️ 知危鉴的短板</h3>
+    <ul>
+      <li><b>OAuth 转化率为 0</b>：Demo 不登录也能用，用户没有动力走 OAuth 流程</li>
+      <li><b>使用人数 0</b>：直接影响人气奖评分（官方明确说 OAuth 登录数是重要参考）</li>
+      <li><b>点赞/评论为 0</b>：互动数据全为零，热度难以持续提升</li>
+      <li><b>领域偏窄</b>：灾害应急不如学习/社交赛道受众广，评委可能觉得用户群体有限</li>
+    </ul>
+  </div>
+
+  <div class="section-title">六、紧急行动建议</div>
+
+  <div class="insight-box">
+    <h3>🚀 截止前（9/15 10:00）必做</h3>
+    <ul>
+      <li><b>拉人走 OAuth</b>：让每个同学打开 Demo → 点登录知乎 → 授权，每拉 1 人使用 +1</li>
+      <li><b>拉人点赞评论</b>：在赛事页面找到知危鉴卡片，点赞+留言，互动数据影响热度算法</li>
+      <li><b>考虑加一个"登录解锁"功能</b>：比如未登录只看 1 个案例，登录后解锁全部功能，提高 OAuth 转化</li>
+      <li><b>录好视频</b>：1 分钟演示视频是加分项，降低评委理解成本</li>
+      <li><b>提交计划书 PDF</b>：已更新为知危鉴品牌名，确认在赛事页面提交</li>
+    </ul>
+  </div>
+
+  <div style="text-align:center; padding: 40px 0 20px; color: var(--text-muted); font-size: 13px;">
+    知危鉴 · 灾害应急案例AI萃取助手 · 让每一条应急经验都有据可查<br>
+    报告生成时间：2026-09-14
+  </div>
+
+</div>
+
+</body>
+</html>
